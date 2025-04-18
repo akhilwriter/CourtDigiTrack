@@ -4,6 +4,8 @@ import {
   fileHandovers, FileHandover, InsertFileHandover,
   fileLifecycles, FileLifecycle, InsertFileLifecycle
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, gte, and } from "drizzle-orm";
 
 // Define full interface for storage operations
 export interface IStorage {
@@ -277,4 +279,230 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database implementation of the storage interface
+export class DatabaseStorage implements IStorage {
+  // User operations
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const defaultRole = user.role || 'user';
+    const [createdUser] = await db
+      .insert(users)
+      .values({ ...user, role: defaultRole })
+      .returning();
+    return createdUser;
+  }
+
+  async getUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+
+  // File Receipt operations
+  async createFileReceipt(receipt: InsertFileReceipt): Promise<FileReceipt> {
+    const now = new Date();
+    // Generate transaction ID
+    const receiptsCount = await db.select({ count: db.fn.count() }).from(fileReceipts);
+    const count = Number(receiptsCount[0].count) + 1;
+    const transactionId = `TRX-${now.getFullYear()}-${count.toString().padStart(5, '0')}`;
+    
+    // Create receipt with defaults
+    const [newReceipt] = await db
+      .insert(fileReceipts)
+      .values({
+        ...receipt,
+        transactionId,
+        status: receipt.status || "pending_scan",
+        partyNames: receipt.partyNames || null,
+        priority: receipt.priority || "normal",
+        receivedAt: receipt.receivedAt || now,
+        remarks: receipt.remarks || null
+      })
+      .returning();
+    
+    // Create initial lifecycle entry
+    await this.createFileLifecycle({
+      fileReceiptId: newReceipt.id,
+      status: "pending_scan",
+      updatedById: receipt.receivedById,
+      remarks: "File received for digitization",
+      timestamp: now
+    });
+    
+    return newReceipt;
+  }
+
+  async getFileReceipt(id: number): Promise<FileReceipt | undefined> {
+    const [receipt] = await db.select().from(fileReceipts).where(eq(fileReceipts.id, id));
+    return receipt;
+  }
+
+  async getFileReceiptByTransactionId(transactionId: string): Promise<FileReceipt | undefined> {
+    const [receipt] = await db
+      .select()
+      .from(fileReceipts)
+      .where(eq(fileReceipts.transactionId, transactionId));
+    return receipt;
+  }
+
+  async getFileReceiptByCnr(cnrNumber: string): Promise<FileReceipt | undefined> {
+    const [receipt] = await db
+      .select()
+      .from(fileReceipts)
+      .where(eq(fileReceipts.cnrNumber, cnrNumber));
+    return receipt;
+  }
+
+  async getAllFileReceipts(): Promise<FileReceipt[]> {
+    return await db
+      .select()
+      .from(fileReceipts)
+      .orderBy(desc(fileReceipts.receivedAt));
+  }
+
+  async getFileReceiptsByStatus(status: string): Promise<FileReceipt[]> {
+    return await db
+      .select()
+      .from(fileReceipts)
+      .where(eq(fileReceipts.status, status))
+      .orderBy(desc(fileReceipts.receivedAt));
+  }
+
+  async updateFileReceiptStatus(id: number, status: string): Promise<FileReceipt | undefined> {
+    const [updatedReceipt] = await db
+      .update(fileReceipts)
+      .set({ status })
+      .where(eq(fileReceipts.id, id))
+      .returning();
+    return updatedReceipt;
+  }
+
+  // File Handover operations
+  async createFileHandover(handover: InsertFileHandover): Promise<FileHandover> {
+    const now = new Date();
+    
+    // Create handover with defaults
+    const [newHandover] = await db
+      .insert(fileHandovers)
+      .values({
+        ...handover,
+        remarks: handover.remarks || null,
+        handoverAt: handover.handoverAt || now
+      })
+      .returning();
+    
+    // Update file receipt status
+    await this.updateFileReceiptStatus(handover.fileReceiptId, "handover");
+    
+    // Create lifecycle entry
+    await this.createFileLifecycle({
+      fileReceiptId: handover.fileReceiptId,
+      status: "handover",
+      updatedById: handover.handoverById,
+      remarks: handover.remarks || "File handed over for scanning",
+      timestamp: now
+    });
+    
+    return newHandover;
+  }
+
+  async getFileHandoversForReceipt(fileReceiptId: number): Promise<FileHandover[]> {
+    return await db
+      .select()
+      .from(fileHandovers)
+      .where(eq(fileHandovers.fileReceiptId, fileReceiptId))
+      .orderBy(desc(fileHandovers.handoverAt));
+  }
+
+  async getAllFileHandovers(): Promise<FileHandover[]> {
+    return await db
+      .select()
+      .from(fileHandovers)
+      .orderBy(desc(fileHandovers.handoverAt));
+  }
+
+  // File Lifecycle operations
+  async createFileLifecycle(lifecycle: InsertFileLifecycle): Promise<FileLifecycle> {
+    const now = new Date();
+    
+    const [newLifecycle] = await db
+      .insert(fileLifecycles)
+      .values({
+        ...lifecycle,
+        remarks: lifecycle.remarks || null,
+        timestamp: lifecycle.timestamp || now
+      })
+      .returning();
+    
+    return newLifecycle;
+  }
+
+  async getFileLifecyclesForReceipt(fileReceiptId: number): Promise<FileLifecycle[]> {
+    return await db
+      .select()
+      .from(fileLifecycles)
+      .where(eq(fileLifecycles.fileReceiptId, fileReceiptId))
+      .orderBy(desc(fileLifecycles.timestamp));
+  }
+
+  // Dashboard statistics
+  async getDashboardStats(): Promise<{
+    pendingReceipt: number;
+    receivedToday: number;
+    scannedToday: number;
+    uploadCompleted: number;
+  }> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Get pending receipts count
+    const pendingReceiptResult = await db
+      .select({ count: db.fn.count() })
+      .from(fileReceipts)
+      .where(eq(fileReceipts.status, "pending_scan"));
+    const pendingReceipt = Number(pendingReceiptResult[0].count);
+    
+    // Get received today count
+    const receivedTodayResult = await db
+      .select({ count: db.fn.count() })
+      .from(fileReceipts)
+      .where(gte(fileReceipts.receivedAt, today));
+    const receivedToday = Number(receivedTodayResult[0].count);
+    
+    // Get scanned today count
+    const scannedTodayResult = await db
+      .select({ count: db.fn.count() })
+      .from(fileLifecycles)
+      .where(
+        and(
+          eq(fileLifecycles.status, "scanning"),
+          gte(fileLifecycles.timestamp, today)
+        )
+      );
+    const scannedToday = Number(scannedTodayResult[0].count);
+    
+    // Get upload completed count
+    const uploadCompletedResult = await db
+      .select({ count: db.fn.count() })
+      .from(fileReceipts)
+      .where(eq(fileReceipts.status, "upload_completed"));
+    const uploadCompleted = Number(uploadCompletedResult[0].count);
+    
+    return {
+      pendingReceipt,
+      receivedToday,
+      scannedToday,
+      uploadCompleted
+    };
+  }
+}
+
+// Create and export a database storage instance
+export const storage = new DatabaseStorage();

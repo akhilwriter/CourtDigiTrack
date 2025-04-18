@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, uniqueIndex, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // User table and schemas
 export const users = pgTable("users", {
@@ -29,7 +30,7 @@ export const fileReceipts = pgTable("file_receipts", {
   pageCount: integer("page_count").notNull(),
   partyNames: text("party_names"),
   priority: text("priority").notNull().default("normal"),
-  receivedById: integer("received_by_id").notNull(),
+  receivedById: integer("received_by_id").notNull().references(() => users.id),
   receivedAt: timestamp("received_at").notNull().defaultNow(),
   remarks: text("remarks"),
   status: text("status").notNull().default("pending_scan"),
@@ -43,9 +44,9 @@ export const insertFileReceiptSchema = createInsertSchema(fileReceipts).omit({
 // File handover table and schemas
 export const fileHandovers = pgTable("file_handovers", {
   id: serial("id").primaryKey(),
-  fileReceiptId: integer("file_receipt_id").notNull(),
-  handoverById: integer("handover_by_id").notNull(),
-  handoverToId: integer("handover_to_id").notNull(),
+  fileReceiptId: integer("file_receipt_id").notNull().references(() => fileReceipts.id),
+  handoverById: integer("handover_by_id").notNull().references(() => users.id),
+  handoverToId: integer("handover_to_id").notNull().references(() => users.id),
   handoverMode: text("handover_mode").notNull(),
   handoverAt: timestamp("handover_at").notNull().defaultNow(),
   remarks: text("remarks"),
