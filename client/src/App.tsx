@@ -49,7 +49,7 @@ function App() {
         <TooltipProvider>
           <Switch>
             <Route path="/login">
-              {isAuthenticated ? <Route path="/" /> : <Login />}
+              {isAuthenticated ? <Dashboard /> : <Login />}
             </Route>
             
             <Route path="/">
@@ -58,7 +58,7 @@ function App() {
                   <Dashboard />
                 </MainLayout>
               ) : (
-                <Route path="/login" />
+                <Login />
               )}
             </Route>
             
@@ -68,7 +68,7 @@ function App() {
                   <InventoryIn />
                 </MainLayout>
               ) : (
-                <Route path="/login" />
+                <Login />
               )}
             </Route>
             
@@ -78,7 +78,7 @@ function App() {
                   <InventoryOut />
                 </MainLayout>
               ) : (
-                <Route path="/login" />
+                <Login />
               )}
             </Route>
             
@@ -88,7 +88,7 @@ function App() {
                   <Reports />
                 </MainLayout>
               ) : (
-                <Route path="/login" />
+                <Login />
               )}
             </Route>
             
@@ -98,7 +98,7 @@ function App() {
                   <UserManagement />
                 </MainLayout>
               ) : (
-                <Route path="/login" />
+                <Login />
               )}
             </Route>
             
@@ -108,7 +108,7 @@ function App() {
                   <Settings />
                 </MainLayout>
               ) : (
-                <Route path="/login" />
+                <Login />
               )}
             </Route>
             
