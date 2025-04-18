@@ -1,119 +1,130 @@
-import { useQuery } from "@tanstack/react-query";
-import StatsCard from "@/components/dashboard/stats-card";
-import ActivityChart from "@/components/dashboard/activity-chart";
-import FileStatusBreakdown from "@/components/dashboard/file-status-breakdown";
-import RecentActivity from "@/components/dashboard/recent-activity";
-import DateRangeSelector from "@/components/common/date-range-selector";
+import { useQuery } from '@tanstack/react-query';
 import { 
-  Calendar, 
-  CheckCircle, 
-  Clock, 
-  TrendingUp
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+  Breadcrumb, 
+  BreadcrumbItem, 
+  BreadcrumbLink, 
+  BreadcrumbList, 
+  BreadcrumbPage, 
+  BreadcrumbSeparator 
+} from '@/components/ui/breadcrumb';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import StatCard from '@/components/dashboard/StatCard';
+import FileTable from '@/components/inventory/FileTable';
+import { HourglassIcon, FileTextIcon, FileScan, UploadCloudIcon, PieChart, BarChart, Ellipsis } from 'lucide-react';
+import { FileReceipt } from '@shared/schema';
 
 export default function Dashboard() {
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['/api/dashboard/stats'],
+  const { data: stats, isLoading: statsLoading } = useQuery({
+    queryKey: ['/api/stats/dashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/stats/dashboard');
+      if (!res.ok) throw new Error('Failed to fetch dashboard stats');
+      return res.json();
+    }
   });
-  
-  if (isLoading) {
-    return (
-      <div className="h-screen flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-  
+
+  const { data: recentFiles } = useQuery<FileReceipt[]>({
+    queryKey: ['/api/file-receipts'],
+    queryFn: async () => {
+      const res = await fetch('/api/file-receipts');
+      if (!res.ok) throw new Error('Failed to fetch recent files');
+      return res.json();
+    }
+  });
+
   return (
-    <div className="space-y-6 pt-14">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-800">Dashboard</h2>
-        <div className="flex space-x-3">
-          <div className="relative">
-            <Input 
-              type="text" 
-              placeholder="Search..." 
-              className="pl-10"
-            />
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-5 w-5 text-gray-400 absolute left-3 top-2.5" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
-            >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" 
-              />
-            </svg>
-          </div>
-          <Button>
-            Export Data
-          </Button>
-        </div>
+    <div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Dashboard</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="flex justify-between items-center mb-6 mt-4">
+        <h1 className="text-2xl font-semibold text-neutral-800">Dashboard</h1>
       </div>
 
-      <DateRangeSelector />
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatsCard
-          title="Files Received Today"
-          value={stats?.todayFiles || 0}
-          icon={<Calendar className="h-6 w-6 text-primary-600" />}
-          iconBg="bg-primary-100"
-          linkText="View all"
-          linkHref="/inventory-in"
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+        <StatCard
+          title="Pending Receipt"
+          value={statsLoading ? 0 : stats?.pendingReceipt}
+          icon={<HourglassIcon className="h-6 w-6" />}
+          changeText="12% since yesterday"
+          changeValue={12}
+          iconBgColor="bg-blue-100"
+          iconColor="text-primary"
         />
-        
-        <StatsCard
-          title="Files Digitized (Last 7 Days)"
-          value={stats?.digitizedFiles || 0}
-          icon={<CheckCircle className="h-6 w-6 text-green-600" />}
-          iconBg="bg-green-100"
-          linkText="View all"
-          linkHref="/reports"
+        <StatCard
+          title="Received Today"
+          value={statsLoading ? 0 : stats?.receivedToday}
+          icon={<FileTextIcon className="h-6 w-6" />}
+          changeText="8% since yesterday"
+          changeValue={8}
+          iconBgColor="bg-green-100"
+          iconColor="text-success"
         />
-        
-        <StatsCard
-          title="Pending for Scanning"
-          value={stats?.pendingFiles || 0}
-          icon={<Clock className="h-6 w-6 text-yellow-600" />}
-          iconBg="bg-yellow-100"
-          linkText="View all"
-          linkHref="/inventory-out"
+        <StatCard
+          title="Scanned Today"
+          value={statsLoading ? 0 : stats?.scannedToday}
+          icon={<FileScan className="h-6 w-6" />}
+          changeText="-3% since yesterday"
+          changeValue={-3}
+          iconBgColor="bg-purple-100"
+          iconColor="text-purple-600"
         />
-        
-        <StatsCard
-          title="Avg. Pages/Hour"
-          value={73}
-          icon={<TrendingUp className="h-6 w-6 text-indigo-600" />}
-          iconBg="bg-indigo-100"
-          linkText="View details"
-          linkHref="/reports"
+        <StatCard
+          title="Upload Completed"
+          value={statsLoading ? 0 : stats?.uploadCompleted}
+          icon={<UploadCloudIcon className="h-6 w-6" />}
+          changeText="15% since yesterday"
+          changeValue={15}
+          iconBgColor="bg-amber-100"
+          iconColor="text-amber-600"
         />
       </div>
 
-      {/* Activity Chart and File Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ActivityChart 
-          className="lg:col-span-2"
-          data={stats?.activityData || []}
-        />
-        <FileStatusBreakdown 
-          data={stats?.filesByStatus || {}}
-        />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <Card className="shadow-sm lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-lg">Digitization Status</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center items-center p-6">
+            <div className="w-full h-48 flex items-center justify-center text-neutral-500">
+              <PieChart className="h-12 w-12" />
+              <div className="ml-4 text-sm">
+                <p>Status distribution chart would appear here in a complete implementation.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="text-lg">Weekly Processing Trend</CardTitle>
+          </CardHeader>
+          <CardContent className="flex justify-center items-center p-6">
+            <div className="w-full h-48 flex items-center justify-center text-neutral-500">
+              <BarChart className="h-12 w-12" />
+              <div className="ml-4 text-sm">
+                <p>Weekly processing trend chart would appear here in a complete implementation.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Recent Activity */}
-      <RecentActivity 
-        activities={stats?.recentEvents || []} 
-      />
+      <div className="mb-6">
+        <FileTable 
+          title="Recent File Activities" 
+          description="Showing the most recent file receipt and processing activities"
+        />
+      </div>
     </div>
   );
 }

@@ -1,342 +1,279 @@
 import { 
-  User, InsertUser, 
-  File, InsertFile, 
-  FileHandover, InsertFileHandover,
-  LifecycleEvent, InsertLifecycleEvent,
-  fileStatusEnum
+  users, User, InsertUser, 
+  fileReceipts, FileReceipt, InsertFileReceipt,
+  fileHandovers, FileHandover, InsertFileHandover,
+  fileLifecycles, FileLifecycle, InsertFileLifecycle
 } from "@shared/schema";
 
-// Storage interface
+// Define full interface for storage operations
 export interface IStorage {
   // User operations
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getUsers(): Promise<User[]>;
-  
-  // File operations
-  getFile(id: number): Promise<File | undefined>;
-  getFileByTransactionId(transactionId: string): Promise<File | undefined>;
-  getFileByCNR(cnrNumber: string): Promise<File | undefined>;
-  createFile(file: InsertFile): Promise<File>;
-  updateFileStatus(id: number, status: string): Promise<File | undefined>;
-  getFiles(options?: { 
-    status?: string; 
-    caseType?: string;
-    limit?: number;
-    offset?: number;
-  }): Promise<File[]>;
-  getRecentFiles(limit?: number): Promise<File[]>;
-  
+
+  // File Receipt operations
+  createFileReceipt(receipt: InsertFileReceipt): Promise<FileReceipt>;
+  getFileReceipt(id: number): Promise<FileReceipt | undefined>;
+  getFileReceiptByTransactionId(transactionId: string): Promise<FileReceipt | undefined>;
+  getFileReceiptByCnr(cnrNumber: string): Promise<FileReceipt | undefined>;
+  getAllFileReceipts(): Promise<FileReceipt[]>;
+  getFileReceiptsByStatus(status: string): Promise<FileReceipt[]>;
+  updateFileReceiptStatus(id: number, status: string): Promise<FileReceipt | undefined>;
+
   // File Handover operations
   createFileHandover(handover: InsertFileHandover): Promise<FileHandover>;
-  getFileHandovers(fileId: number): Promise<FileHandover[]>;
-  
-  // Lifecycle operations
-  createLifecycleEvent(event: InsertLifecycleEvent): Promise<LifecycleEvent>;
-  getLifecycleEvents(fileId: number): Promise<LifecycleEvent[]>;
-  getRecentLifecycleEvents(limit?: number): Promise<LifecycleEvent[]>;
+  getFileHandoversForReceipt(fileReceiptId: number): Promise<FileHandover[]>;
+  getAllFileHandovers(): Promise<FileHandover[]>;
+
+  // File Lifecycle operations
+  createFileLifecycle(lifecycle: InsertFileLifecycle): Promise<FileLifecycle>;
+  getFileLifecyclesForReceipt(fileReceiptId: number): Promise<FileLifecycle[]>;
   
   // Dashboard statistics
-  getFilesCountByStatus(): Promise<{ status: string; count: number }[]>;
-  getFilesCountToday(): Promise<number>;
-  getFilesCountByDateRange(startDate: Date, endDate: Date): Promise<{ date: string; count: number }[]>;
+  getDashboardStats(): Promise<{
+    pendingReceipt: number;
+    receivedToday: number;
+    scannedToday: number;
+    uploadCompleted: number;
+  }>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<number, User>;
-  private files: Map<number, File>;
+  private fileReceipts: Map<number, FileReceipt>;
   private fileHandovers: Map<number, FileHandover>;
-  private lifecycleEvents: Map<number, LifecycleEvent>;
-  private userId: number;
-  private fileId: number;
-  private fileHandoverId: number;
-  private lifecycleEventId: number;
+  private fileLifecycles: Map<number, FileLifecycle>;
+  
+  private userIdCounter: number;
+  private fileReceiptIdCounter: number;
+  private fileHandoverIdCounter: number;
+  private fileLifecycleIdCounter: number;
 
   constructor() {
     this.users = new Map();
-    this.files = new Map();
+    this.fileReceipts = new Map();
     this.fileHandovers = new Map();
-    this.lifecycleEvents = new Map();
-    this.userId = 1;
-    this.fileId = 1;
-    this.fileHandoverId = 1;
-    this.lifecycleEventId = 1;
+    this.fileLifecycles = new Map();
     
-    // Add some default users
-    this.addDefaultUsers();
+    this.userIdCounter = 1;
+    this.fileReceiptIdCounter = 1;
+    this.fileHandoverIdCounter = 1;
+    this.fileLifecycleIdCounter = 1;
+    
+    // Add initial admin user
+    this.createUser({
+      username: "admin",
+      password: "admin123", // In a real app, this would be hashed
+      fullName: "Admin User",
+      role: "admin"
+    });
   }
 
-  private addDefaultUsers() {
-    const defaultUsers: InsertUser[] = [
-      {
-        username: "admin",
-        password: "admin123", // In a real app, this would be hashed
-        fullName: "Admin User",
-        role: "admin",
-        active: true
-      },
-      {
-        username: "operator1",
-        password: "pass123",
-        fullName: "Anita Sharma",
-        role: "operator",
-        active: true
-      },
-      {
-        username: "operator2",
-        password: "pass123",
-        fullName: "Rajiv Kumar",
-        role: "operator",
-        active: true
-      },
-      {
-        username: "supervisor1",
-        password: "pass123",
-        fullName: "Priya Desai",
-        role: "supervisor",
-        active: true
-      }
-    ];
-
-    defaultUsers.forEach(user => this.createUser(user));
-  }
-
-  // User methods
+  // User operations
   async getUser(id: number): Promise<User | undefined> {
     return this.users.get(id);
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     return Array.from(this.users.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
+      (user) => user.username === username
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userId++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
+  async createUser(user: InsertUser): Promise<User> {
+    const id = this.userIdCounter++;
+    const newUser: User = { 
+      ...user, 
       id,
-      createdAt: now
+      role: user.role || 'user' // Ensure role is never undefined
     };
-    this.users.set(id, user);
-    return user;
+    this.users.set(id, newUser);
+    return newUser;
   }
 
   async getUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
 
-  // File methods
-  async getFile(id: number): Promise<File | undefined> {
-    return this.files.get(id);
-  }
-
-  async getFileByTransactionId(transactionId: string): Promise<File | undefined> {
-    return Array.from(this.files.values()).find(
-      (file) => file.transactionId === transactionId
-    );
-  }
-
-  async getFileByCNR(cnrNumber: string): Promise<File | undefined> {
-    return Array.from(this.files.values()).find(
-      (file) => file.cnrNumber === cnrNumber
-    );
-  }
-
-  async createFile(insertFile: InsertFile): Promise<File> {
-    const id = this.fileId++;
+  // File Receipt operations
+  async createFileReceipt(receipt: InsertFileReceipt): Promise<FileReceipt> {
+    const id = this.fileReceiptIdCounter++;
+    const transactionId = `TRX-${new Date().getFullYear()}-${id.toString().padStart(5, '0')}`;
     const now = new Date();
-    const transactionId = `TRX-${now.getFullYear()}-${String(id).padStart(5, '0')}`;
     
-    const file: File = {
-      ...insertFile,
-      id,
+    const newReceipt: FileReceipt = { 
+      ...receipt, 
+      id, 
       transactionId,
-      receivedAt: now,
-      lastUpdatedAt: now,
-      status: 'received'
+      status: receipt.status || "pending_scan",
+      partyNames: receipt.partyNames || null,
+      priority: receipt.priority || "normal",
+      receivedAt: receipt.receivedAt || now,
+      remarks: receipt.remarks || null
     };
-
-    this.files.set(id, file);
     
-    // Also create initial lifecycle event
-    this.createLifecycleEvent({
-      fileId: id,
-      status: 'received',
-      userId: insertFile.receivedById,
-      notes: "File received for digitization"
+    this.fileReceipts.set(id, newReceipt);
+    
+    // Create initial lifecycle entry
+    await this.createFileLifecycle({
+      fileReceiptId: id,
+      status: "pending_scan",
+      updatedById: receipt.receivedById,
+      remarks: "File received for digitization",
+      timestamp: now
     });
     
-    return file;
+    return newReceipt;
   }
 
-  async updateFileStatus(id: number, status: string): Promise<File | undefined> {
-    const file = this.files.get(id);
-    if (!file) return undefined;
-    
-    const updatedFile: File = {
-      ...file,
-      status: status as any,
-      lastUpdatedAt: new Date()
-    };
-    
-    this.files.set(id, updatedFile);
-    return updatedFile;
+  async getFileReceipt(id: number): Promise<FileReceipt | undefined> {
+    return this.fileReceipts.get(id);
   }
 
-  async getFiles(options: { 
-    status?: string; 
-    caseType?: string; 
-    limit?: number;
-    offset?: number;
-  } = {}): Promise<File[]> {
-    let files = Array.from(this.files.values());
-    
-    if (options.status) {
-      files = files.filter(file => file.status === options.status);
-    }
-    
-    if (options.caseType) {
-      files = files.filter(file => file.caseType === options.caseType);
-    }
-    
-    // Sort by receivedAt (most recent first)
-    files.sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
-    
-    // Apply pagination if provided
-    if (options.offset !== undefined && options.limit !== undefined) {
-      files = files.slice(options.offset, options.offset + options.limit);
-    } else if (options.limit !== undefined) {
-      files = files.slice(0, options.limit);
-    }
-    
-    return files;
+  async getFileReceiptByTransactionId(transactionId: string): Promise<FileReceipt | undefined> {
+    return Array.from(this.fileReceipts.values()).find(
+      (receipt) => receipt.transactionId === transactionId
+    );
   }
 
-  async getRecentFiles(limit: number = 10): Promise<File[]> {
-    const files = Array.from(this.files.values());
-    files.sort((a, b) => b.receivedAt.getTime() - a.receivedAt.getTime());
-    return files.slice(0, limit);
+  async getFileReceiptByCnr(cnrNumber: string): Promise<FileReceipt | undefined> {
+    return Array.from(this.fileReceipts.values()).find(
+      (receipt) => receipt.cnrNumber === cnrNumber
+    );
   }
 
-  // File Handover methods
-  async createFileHandover(insertHandover: InsertFileHandover): Promise<FileHandover> {
-    const id = this.fileHandoverId++;
-    const now = new Date();
-    
-    const handover: FileHandover = {
-      ...insertHandover,
-      id,
-      handoverAt: now
-    };
-    
-    this.fileHandovers.set(id, handover);
-    
-    // Update file status to under_scanning
-    const file = await this.getFile(insertHandover.fileId);
-    if (file) {
-      await this.updateFileStatus(file.id, 'under_scanning');
-      
-      // Create lifecycle event for handover
-      await this.createLifecycleEvent({
-        fileId: file.id,
-        status: 'under_scanning',
-        userId: insertHandover.handoverById,
-        notes: `File handed over to ${insertHandover.handoverToId} for scanning`
+  async getAllFileReceipts(): Promise<FileReceipt[]> {
+    return Array.from(this.fileReceipts.values()).sort((a, b) => {
+      // Sort by most recent first
+      return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
+    });
+  }
+
+  async getFileReceiptsByStatus(status: string): Promise<FileReceipt[]> {
+    return Array.from(this.fileReceipts.values())
+      .filter(receipt => receipt.status === status)
+      .sort((a, b) => {
+        // Sort by most recent first
+        return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
       });
+  }
+
+  async updateFileReceiptStatus(id: number, status: string): Promise<FileReceipt | undefined> {
+    const receipt = await this.getFileReceipt(id);
+    if (receipt) {
+      const updatedReceipt = { ...receipt, status };
+      this.fileReceipts.set(id, updatedReceipt);
+      return updatedReceipt;
     }
-    
-    return handover;
+    return undefined;
   }
 
-  async getFileHandovers(fileId: number): Promise<FileHandover[]> {
-    return Array.from(this.fileHandovers.values())
-      .filter(handover => handover.fileId === fileId)
-      .sort((a, b) => b.handoverAt.getTime() - a.handoverAt.getTime());
-  }
-
-  // Lifecycle methods
-  async createLifecycleEvent(insertEvent: InsertLifecycleEvent): Promise<LifecycleEvent> {
-    const id = this.lifecycleEventId++;
+  // File Handover operations
+  async createFileHandover(handover: InsertFileHandover): Promise<FileHandover> {
+    const id = this.fileHandoverIdCounter++;
     const now = new Date();
     
-    const event: LifecycleEvent = {
-      ...insertEvent,
+    const newHandover: FileHandover = { 
+      ...handover, 
       id,
-      timestamp: now
+      remarks: handover.remarks || null,
+      handoverAt: handover.handoverAt || now
     };
     
-    this.lifecycleEvents.set(id, event);
-    return event;
+    this.fileHandovers.set(id, newHandover);
+    
+    // Update file receipt status
+    await this.updateFileReceiptStatus(handover.fileReceiptId, "handover");
+    
+    // Create lifecycle entry
+    await this.createFileLifecycle({
+      fileReceiptId: handover.fileReceiptId,
+      status: "handover",
+      updatedById: handover.handoverById,
+      remarks: handover.remarks || "File handed over for scanning",
+      timestamp: now
+    });
+    
+    return newHandover;
   }
 
-  async getLifecycleEvents(fileId: number): Promise<LifecycleEvent[]> {
-    return Array.from(this.lifecycleEvents.values())
-      .filter(event => event.fileId === fileId)
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+  async getFileHandoversForReceipt(fileReceiptId: number): Promise<FileHandover[]> {
+    return Array.from(this.fileHandovers.values())
+      .filter(handover => handover.fileReceiptId === fileReceiptId)
+      .sort((a, b) => {
+        // Sort by most recent first
+        return new Date(b.handoverAt).getTime() - new Date(a.handoverAt).getTime();
+      });
   }
 
-  async getRecentLifecycleEvents(limit: number = 10): Promise<LifecycleEvent[]> {
-    const events = Array.from(this.lifecycleEvents.values());
-    events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    return events.slice(0, limit);
+  async getAllFileHandovers(): Promise<FileHandover[]> {
+    return Array.from(this.fileHandovers.values()).sort((a, b) => {
+      // Sort by most recent first
+      return new Date(b.handoverAt).getTime() - new Date(a.handoverAt).getTime();
+    });
+  }
+
+  // File Lifecycle operations
+  async createFileLifecycle(lifecycle: InsertFileLifecycle): Promise<FileLifecycle> {
+    const id = this.fileLifecycleIdCounter++;
+    const now = new Date();
+    
+    const newLifecycle: FileLifecycle = { 
+      ...lifecycle, 
+      id,
+      remarks: lifecycle.remarks || null,
+      timestamp: lifecycle.timestamp || now
+    };
+    
+    this.fileLifecycles.set(id, newLifecycle);
+    return newLifecycle;
+  }
+
+  async getFileLifecyclesForReceipt(fileReceiptId: number): Promise<FileLifecycle[]> {
+    return Array.from(this.fileLifecycles.values())
+      .filter(lifecycle => lifecycle.fileReceiptId === fileReceiptId)
+      .sort((a, b) => {
+        // Sort by most recent first
+        return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+      });
   }
 
   // Dashboard statistics
-  async getFilesCountByStatus(): Promise<{ status: string; count: number }[]> {
-    const statusCounts: Record<string, number> = {};
-    
-    // Initialize all statuses with zero count
-    for (const status of fileStatusEnum.enumValues) {
-      statusCounts[status] = 0;
-    }
-    
-    // Count files by status
-    for (const file of this.files.values()) {
-      statusCounts[file.status]++;
-    }
-    
-    return Object.entries(statusCounts).map(([status, count]) => ({
-      status,
-      count
-    }));
-  }
-
-  async getFilesCountToday(): Promise<number> {
+  async getDashboardStats(): Promise<{
+    pendingReceipt: number;
+    receivedToday: number;
+    scannedToday: number;
+    uploadCompleted: number;
+  }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    return Array.from(this.files.values())
-      .filter(file => file.receivedAt >= today)
-      .length;
-  }
-
-  async getFilesCountByDateRange(startDate: Date, endDate: Date): Promise<{ date: string; count: number }[]> {
-    // Initialize date map for the range
-    const dateMap = new Map<string, number>();
+    const pendingReceipt = Array.from(this.fileReceipts.values()).filter(
+      receipt => receipt.status === "pending_scan"
+    ).length;
     
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      const dateString = currentDate.toISOString().split('T')[0];
-      dateMap.set(dateString, 0);
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    const receivedToday = Array.from(this.fileReceipts.values()).filter(
+      receipt => new Date(receipt.receivedAt) >= today
+    ).length;
     
-    // Count files by date
-    for (const file of this.files.values()) {
-      const fileDate = file.receivedAt.toISOString().split('T')[0];
-      if (dateMap.has(fileDate)) {
-        dateMap.set(fileDate, (dateMap.get(fileDate) || 0) + 1);
-      }
-    }
+    const scannedToday = Array.from(this.fileLifecycles.values()).filter(
+      lifecycle => 
+        lifecycle.status === "scanning" && 
+        new Date(lifecycle.timestamp) >= today
+    ).length;
     
-    return Array.from(dateMap.entries()).map(([date, count]) => ({
-      date,
-      count
-    }));
+    const uploadCompleted = Array.from(this.fileReceipts.values()).filter(
+      receipt => receipt.status === "upload_completed"
+    ).length;
+    
+    return {
+      pendingReceipt,
+      receivedToday,
+      scannedToday,
+      uploadCompleted
+    };
   }
 }
 

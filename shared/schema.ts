@@ -1,115 +1,99 @@
-import { pgTable, text, serial, integer, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Enums
-export const userRoleEnum = pgEnum('user_role', ['admin', 'operator', 'supervisor']);
-export const caseTypeEnum = pgEnum('case_type', ['civil', 'criminal', 'writ', 'appeal', 'revision', 'other']);
-export const priorityEnum = pgEnum('priority', ['normal', 'high', 'urgent']);
-export const fileStatusEnum = pgEnum('file_status', [
-  'received', 
-  'under_scanning', 
-  'scanning_completed',
-  'qc_pending',
-  'qc_done',
-  'upload_pending',
-  'upload_completed'
-]);
-
-// Users
+// User table and schemas
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   fullName: text("full_name").notNull(),
-  role: userRoleEnum("role").notNull().default('operator'),
-  active: boolean("active").notNull().default(true),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
+  role: text("role").notNull().default("user"),
 });
 
-// Files
-export const files = pgTable("files", {
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+  fullName: true,
+  role: true,
+});
+
+// File receipt table and schemas
+export const fileReceipts = pgTable("file_receipts", {
   id: serial("id").primaryKey(),
   transactionId: text("transaction_id").notNull().unique(),
   cnrNumber: text("cnr_number").notNull(),
-  caseType: caseTypeEnum("case_type").notNull(),
-  caseYear: integer("case_year").notNull(),
+  caseType: text("case_type").notNull(),
+  caseYear: text("case_year").notNull(),
   caseNumber: text("case_number").notNull(),
   pageCount: integer("page_count").notNull(),
-  receivedById: integer("received_by_id").notNull().references(() => users.id),
+  partyNames: text("party_names"),
+  priority: text("priority").notNull().default("normal"),
+  receivedById: integer("received_by_id").notNull(),
   receivedAt: timestamp("received_at").notNull().defaultNow(),
-  priority: priorityEnum("priority").notNull().default('normal'),
-  status: fileStatusEnum("status").notNull().default('received'),
-  notes: text("notes"),
-  lastUpdatedAt: timestamp("last_updated_at").notNull().defaultNow(),
+  remarks: text("remarks"),
+  status: text("status").notNull().default("pending_scan"),
 });
 
-// File Handovers
+export const insertFileReceiptSchema = createInsertSchema(fileReceipts).omit({
+  id: true,
+  transactionId: true,
+});
+
+// File handover table and schemas
 export const fileHandovers = pgTable("file_handovers", {
   id: serial("id").primaryKey(),
-  fileId: integer("file_id").notNull().references(() => files.id),
-  handoverById: integer("handover_by_id").notNull().references(() => users.id),
-  handoverToId: integer("handover_to_id").notNull().references(() => users.id),
+  fileReceiptId: integer("file_receipt_id").notNull(),
+  handoverById: integer("handover_by_id").notNull(),
+  handoverToId: integer("handover_to_id").notNull(),
+  handoverMode: text("handover_mode").notNull(),
   handoverAt: timestamp("handover_at").notNull().defaultNow(),
-  handoverMode: text("handover_mode").notNull().default('manual'),
-  notes: text("notes"),
-});
-
-// Lifecycle Events
-export const lifecycleEvents = pgTable("lifecycle_events", {
-  id: serial("id").primaryKey(),
-  fileId: integer("file_id").notNull().references(() => files.id),
-  status: fileStatusEnum("status").notNull(),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  userId: integer("user_id").notNull().references(() => users.id),
-  notes: text("notes"),
-});
-
-// Create Insert Schemas
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true
-});
-
-export const insertFileSchema = createInsertSchema(files).omit({
-  id: true,
-  transactionId: true, // Generated server-side
-  receivedAt: true,
-  lastUpdatedAt: true
+  remarks: text("remarks"),
 });
 
 export const insertFileHandoverSchema = createInsertSchema(fileHandovers).omit({
   id: true,
-  handoverAt: true
 });
 
-export const insertLifecycleEventSchema = createInsertSchema(lifecycleEvents).omit({
+// File lifecycle tracking table and schemas
+export const fileLifecycles = pgTable("file_lifecycles", {
+  id: serial("id").primaryKey(),
+  fileReceiptId: integer("file_receipt_id").notNull(),
+  status: text("status").notNull(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  updatedById: integer("updated_by_id").notNull(),
+  remarks: text("remarks"),
+});
+
+export const insertFileLifecycleSchema = createInsertSchema(fileLifecycles).omit({
   id: true,
-  timestamp: true
-});
-
-// Additional validation schemas
-export const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
 });
 
 // Export types
 export type User = typeof users.$inferSelect;
 export type InsertUser = z.infer<typeof insertUserSchema>;
 
-export type File = typeof files.$inferSelect;
-export type InsertFile = z.infer<typeof insertFileSchema>;
+export type FileReceipt = typeof fileReceipts.$inferSelect;
+export type InsertFileReceipt = z.infer<typeof insertFileReceiptSchema>;
 
 export type FileHandover = typeof fileHandovers.$inferSelect;
 export type InsertFileHandover = z.infer<typeof insertFileHandoverSchema>;
 
-export type LifecycleEvent = typeof lifecycleEvents.$inferSelect;
-export type InsertLifecycleEvent = z.infer<typeof insertLifecycleEventSchema>;
+export type FileLifecycle = typeof fileLifecycles.$inferSelect;
+export type InsertFileLifecycle = z.infer<typeof insertFileLifecycleSchema>;
 
-export type FileStatus = typeof fileStatusEnum.enumValues;
-export type CaseType = typeof caseTypeEnum.enumValues;
-export type Priority = typeof priorityEnum.enumValues;
-export type UserRole = typeof userRoleEnum.enumValues;
+// Extended file receipt schema with validation
+export const fileReceiptFormSchema = insertFileReceiptSchema.extend({
+  cnrNumber: z.string().min(5, "CNR Number must be at least 5 characters"),
+  caseType: z.string().min(1, "Case type is required"),
+  caseYear: z.string().min(4, "Please enter a valid year").max(4),
+  caseNumber: z.string().min(1, "Case number is required"),
+  pageCount: z.number().min(1, "Page count must be at least 1")
+});
 
-export type Login = z.infer<typeof loginSchema>;
+// Extended file handover schema with validation
+export const fileHandoverFormSchema = insertFileHandoverSchema.extend({
+  fileReceiptId: z.number().min(1, "File receipt is required"),
+  handoverToId: z.number().min(1, "Handover recipient is required"),
+  handoverMode: z.string().min(1, "Handover mode is required")
+});

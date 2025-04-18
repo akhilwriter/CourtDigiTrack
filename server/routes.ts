@@ -2,214 +2,247 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { 
-  insertFileSchema, 
-  insertFileHandoverSchema, 
-  insertLifecycleEventSchema,
-  loginSchema
+  insertUserSchema, 
+  fileReceiptFormSchema, 
+  fileHandoverFormSchema,
+  insertFileLifecycleSchema
 } from "@shared/schema";
-import { ZodError } from "zod";
-import { fromZodError } from "zod-validation-error";
-
-// Utility function to handle errors
-const handleError = (res: Response, error: unknown) => {
-  console.error(error);
-  if (error instanceof ZodError) {
-    return res.status(400).json({ 
-      message: "Validation error",
-      errors: fromZodError(error).message
-    });
-  }
-  return res.status(500).json({ message: "Internal server error" });
-};
+import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // API prefix for all routes
-  const apiPrefix = "/api";
-
-  // User authentication
-  app.post(`${apiPrefix}/login`, async (req: Request, res: Response) => {
+  // AUTH ROUTES
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
-      const credentials = loginSchema.parse(req.body);
-      const user = await storage.getUserByUsername(credentials.username);
+      const { username, password } = req.body;
       
-      if (!user || user.password !== credentials.password) {
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
+      }
+      
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || user.password !== password) {
         return res.status(401).json({ message: "Invalid username or password" });
       }
       
-      // In a real application, we would generate a JWT token here
-      // For simplicity, we'll just return the user info without the password
-      const { password, ...userWithoutPassword } = user;
+      // In a real app, we would set up a session or JWT here
+      // For simplicity, we'll just return the user without the password
+      const { password: _, ...userWithoutPassword } = user;
       res.json(userWithoutPassword);
     } catch (error) {
-      handleError(res, error);
+      res.status(500).json({ message: "Failed to login" });
     }
   });
 
-  // Get all users
-  app.get(`${apiPrefix}/users`, async (req: Request, res: Response) => {
+  // USER ROUTES
+  app.get("/api/users", async (req: Request, res: Response) => {
     try {
       const users = await storage.getUsers();
-      // Remove passwords from response
-      const usersWithoutPasswords = users.map(({ password, ...userData }) => userData);
-      res.json(usersWithoutPasswords);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // File Receipt (Inventory In)
-  app.post(`${apiPrefix}/files`, async (req: Request, res: Response) => {
-    try {
-      const fileData = insertFileSchema.parse(req.body);
-      const newFile = await storage.createFile(fileData);
-      res.status(201).json(newFile);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Get all files with optional filtering
-  app.get(`${apiPrefix}/files`, async (req: Request, res: Response) => {
-    try {
-      const { status, caseType, limit, offset } = req.query;
-      const options = {
-        status: status as string | undefined,
-        caseType: caseType as string | undefined,
-        limit: limit ? parseInt(limit as string) : undefined,
-        offset: offset ? parseInt(offset as string) : undefined
-      };
-      
-      const files = await storage.getFiles(options);
-      res.json(files);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Get a file by ID
-  app.get(`${apiPrefix}/files/:id`, async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      const file = await storage.getFile(id);
-      
-      if (!file) {
-        return res.status(404).json({ message: "File not found" });
-      }
-      
-      res.json(file);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Get a file by CNR number
-  app.get(`${apiPrefix}/files/cnr/:cnrNumber`, async (req: Request, res: Response) => {
-    try {
-      const file = await storage.getFileByCNR(req.params.cnrNumber);
-      
-      if (!file) {
-        return res.status(404).json({ message: "File not found" });
-      }
-      
-      res.json(file);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // File Handover (Inventory Out)
-  app.post(`${apiPrefix}/handovers`, async (req: Request, res: Response) => {
-    try {
-      const handoverData = insertFileHandoverSchema.parse(req.body);
-      
-      // Check if file exists
-      const file = await storage.getFile(handoverData.fileId);
-      if (!file) {
-        return res.status(404).json({ message: "File not found" });
-      }
-      
-      const newHandover = await storage.createFileHandover(handoverData);
-      res.status(201).json(newHandover);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Get handovers for a file
-  app.get(`${apiPrefix}/files/:id/handovers`, async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      const handovers = await storage.getFileHandovers(id);
-      res.json(handovers);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Lifecycle Events
-  app.post(`${apiPrefix}/lifecycle-events`, async (req: Request, res: Response) => {
-    try {
-      const eventData = insertLifecycleEventSchema.parse(req.body);
-      
-      // Check if file exists
-      const file = await storage.getFile(eventData.fileId);
-      if (!file) {
-        return res.status(404).json({ message: "File not found" });
-      }
-      
-      // Update the file status
-      await storage.updateFileStatus(eventData.fileId, eventData.status);
-      
-      // Create the lifecycle event
-      const newEvent = await storage.createLifecycleEvent(eventData);
-      res.status(201).json(newEvent);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Get lifecycle events for a file
-  app.get(`${apiPrefix}/files/:id/lifecycle-events`, async (req: Request, res: Response) => {
-    try {
-      const id = parseInt(req.params.id);
-      const events = await storage.getLifecycleEvents(id);
-      res.json(events);
-    } catch (error) {
-      handleError(res, error);
-    }
-  });
-
-  // Dashboard statistics
-  app.get(`${apiPrefix}/dashboard/stats`, async (req: Request, res: Response) => {
-    try {
-      const todayFiles = await storage.getFilesCountToday();
-      const statusCounts = await storage.getFilesCountByStatus();
-      
-      // Calculate files digitized in last 7 days (files with upload_completed status in last week)
-      const lastWeek = new Date();
-      lastWeek.setDate(lastWeek.getDate() - 7);
-      const today = new Date();
-      const activityData = await storage.getFilesCountByDateRange(lastWeek, today);
-      
-      // Get total files by status
-      const filesByStatus = statusCounts.reduce((acc, { status, count }) => {
-        acc[status] = count;
-        return acc;
-      }, {} as Record<string, number>);
-      
-      // Get recent activity
-      const recentEvents = await storage.getRecentLifecycleEvents(5);
-      
-      res.json({
-        todayFiles,
-        filesByStatus,
-        activityData,
-        recentEvents,
-        digitizedFiles: filesByStatus.upload_completed || 0,
-        pendingFiles: filesByStatus.received || 0
+      // Remove passwords before sending
+      const sanitizedUsers = users.map(user => {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
       });
+      res.json(sanitizedUsers);
     } catch (error) {
-      handleError(res, error);
+      res.status(500).json({ message: "Failed to fetch users" });
+    }
+  });
+
+  app.post("/api/users", async (req: Request, res: Response) => {
+    try {
+      const userData = insertUserSchema.parse(req.body);
+      const user = await storage.createUser(userData);
+      
+      // Remove password before sending response
+      const { password, ...userWithoutPassword } = user;
+      res.status(201).json(userWithoutPassword);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid user data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create user" });
+    }
+  });
+
+  // FILE RECEIPT ROUTES
+  app.get("/api/file-receipts", async (req: Request, res: Response) => {
+    try {
+      const status = req.query.status as string | undefined;
+      
+      let fileReceipts;
+      if (status) {
+        fileReceipts = await storage.getFileReceiptsByStatus(status);
+      } else {
+        fileReceipts = await storage.getAllFileReceipts();
+      }
+      
+      res.json(fileReceipts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch file receipts" });
+    }
+  });
+
+  app.get("/api/file-receipts/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID format" });
+      }
+      
+      const fileReceipt = await storage.getFileReceipt(id);
+      if (!fileReceipt) {
+        return res.status(404).json({ message: "File receipt not found" });
+      }
+      
+      res.json(fileReceipt);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch file receipt" });
+    }
+  });
+
+  app.post("/api/file-receipts", async (req: Request, res: Response) => {
+    try {
+      const fileReceiptData = fileReceiptFormSchema.parse(req.body);
+      const fileReceipt = await storage.createFileReceipt(fileReceiptData);
+      res.status(201).json(fileReceipt);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid file receipt data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create file receipt" });
+    }
+  });
+
+  // FILE HANDOVER ROUTES
+  app.get("/api/file-handovers", async (req: Request, res: Response) => {
+    try {
+      const fileReceiptId = req.query.fileReceiptId ? parseInt(req.query.fileReceiptId as string) : undefined;
+      
+      let fileHandovers;
+      if (fileReceiptId && !isNaN(fileReceiptId)) {
+        fileHandovers = await storage.getFileHandoversForReceipt(fileReceiptId);
+      } else {
+        fileHandovers = await storage.getAllFileHandovers();
+      }
+      
+      res.json(fileHandovers);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch file handovers" });
+    }
+  });
+
+  app.post("/api/file-handovers", async (req: Request, res: Response) => {
+    try {
+      const fileHandoverData = fileHandoverFormSchema.parse(req.body);
+      
+      // Verify that the file receipt exists
+      const fileReceipt = await storage.getFileReceipt(fileHandoverData.fileReceiptId);
+      if (!fileReceipt) {
+        return res.status(404).json({ message: "File receipt not found" });
+      }
+      
+      // Verify that the file is in a state that can be handed over
+      if (fileReceipt.status !== "pending_scan") {
+        return res.status(400).json({ message: "File is not in a state that can be handed over" });
+      }
+      
+      const fileHandover = await storage.createFileHandover(fileHandoverData);
+      res.status(201).json(fileHandover);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid file handover data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create file handover" });
+    }
+  });
+
+  // FILE LIFECYCLE ROUTES
+  app.get("/api/file-lifecycles/:fileReceiptId", async (req: Request, res: Response) => {
+    try {
+      const fileReceiptId = parseInt(req.params.fileReceiptId);
+      if (isNaN(fileReceiptId)) {
+        return res.status(400).json({ message: "Invalid file receipt ID format" });
+      }
+      
+      const fileLifecycles = await storage.getFileLifecyclesForReceipt(fileReceiptId);
+      res.json(fileLifecycles);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch file lifecycles" });
+    }
+  });
+
+  app.post("/api/file-lifecycles", async (req: Request, res: Response) => {
+    try {
+      const fileLifecycleData = insertFileLifecycleSchema.parse(req.body);
+      
+      // Verify that the file receipt exists
+      const fileReceipt = await storage.getFileReceipt(fileLifecycleData.fileReceiptId);
+      if (!fileReceipt) {
+        return res.status(404).json({ message: "File receipt not found" });
+      }
+      
+      // Update the file receipt status
+      await storage.updateFileReceiptStatus(fileReceipt.id, fileLifecycleData.status);
+      
+      const fileLifecycle = await storage.createFileLifecycle(fileLifecycleData);
+      res.status(201).json(fileLifecycle);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid file lifecycle data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create file lifecycle" });
+    }
+  });
+
+  // DASHBOARD STATS ROUTE
+  app.get("/api/stats/dashboard", async (req: Request, res: Response) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch dashboard statistics" });
+    }
+  });
+
+  // For simulating external Court API to fetch case details
+  app.get("/api/external/case-details", async (req: Request, res: Response) => {
+    try {
+      const cnrNumber = req.query.cnrNumber as string;
+      
+      if (!cnrNumber) {
+        return res.status(400).json({ message: "CNR number is required" });
+      }
+      
+      // Simulate API delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Return mock data based on CNR number pattern
+      // In a real system, this would call an actual external API
+      if (cnrNumber.startsWith("DL")) {
+        res.json({
+          caseType: "civil",
+          caseYear: "2023",
+          caseNumber: cnrNumber.slice(-4),
+          partyNames: "State vs. John Doe"
+        });
+      } else if (cnrNumber.startsWith("MH")) {
+        res.json({
+          caseType: "criminal",
+          caseYear: "2023",
+          caseNumber: cnrNumber.slice(-4),
+          partyNames: "State vs. Jane Smith"
+        });
+      } else {
+        res.json({
+          caseType: "writ",
+          caseYear: "2023",
+          caseNumber: cnrNumber.slice(-4),
+          partyNames: "Company Ltd. vs. State"
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch case details" });
     }
   });
 

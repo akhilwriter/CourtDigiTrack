@@ -1,301 +1,293 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { 
+  Breadcrumb, 
+  BreadcrumbItem, 
+  BreadcrumbLink, 
+  BreadcrumbList, 
+  BreadcrumbPage, 
+  BreadcrumbSeparator 
+} from '@/components/ui/breadcrumb';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import DateRangeSelector from "@/components/common/date-range-selector";
-import ActivityChart from "@/components/dashboard/activity-chart";
-import FileStatusBreakdown from "@/components/dashboard/file-status-breakdown";
-import { FileText, Download, BarChart2, Users, Printer } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { 
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from "@/components/ui/select";
+import { DownloadIcon, BarChart, PieChart, LineChart } from 'lucide-react';
 
 export default function Reports() {
-  const [reportType, setReportType] = useState("files");
-  
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['/api/dashboard/stats'],
-  });
-  
-  if (isLoading) {
-    return (
-      <div className="h-screen flex justify-center items-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
-  
   return (
-    <div className="space-y-6 pt-14">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800">Reports & MIS</h2>
-          <p className="mt-1 text-sm text-gray-600">Generate and view reports on digitization progress</p>
-        </div>
-        <Button>
-          <Printer className="mr-2 h-4 w-4" />
-          Print Report
-        </Button>
+    <div>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/">Home</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Reports & MIS</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+
+      <div className="flex justify-between items-center mb-6 mt-4">
+        <h1 className="text-2xl font-semibold text-neutral-800">Reports & Management Information System</h1>
       </div>
-      
-      <DateRangeSelector />
-      
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="bg-blue-50 border-blue-100">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <div className="bg-blue-100 p-3 rounded-full">
-                <FileText className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-500">Total Files</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {Object.values(stats?.filesByStatus || {}).reduce((sum, count) => sum + count, 0)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-green-50 border-green-100">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-full">
-                <BarChart2 className="h-5 w-5 text-green-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-500">Digitization Rate</p>
-                <p className="text-2xl font-semibold text-gray-900">86%</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-yellow-50 border-yellow-100">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <div className="bg-yellow-100 p-3 rounded-full">
-                <Download className="h-5 w-5 text-yellow-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-500">Uploaded to DSpace</p>
-                <p className="text-2xl font-semibold text-gray-900">
-                  {stats?.filesByStatus?.upload_completed || 0}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-purple-50 border-purple-100">
-          <CardContent className="pt-6">
-            <div className="flex items-center">
-              <div className="bg-purple-100 p-3 rounded-full">
-                <Users className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="ml-3">
-                <p className="text-sm font-medium text-gray-500">Active Operators</p>
-                <p className="text-2xl font-semibold text-gray-900">12</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
-      <Tabs defaultValue="progress" className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="progress">Digitization Progress</TabsTrigger>
-          <TabsTrigger value="performance">User Performance</TabsTrigger>
+
+      <Tabs defaultValue="daily-reports">
+        <TabsList className="mb-6">
+          <TabsTrigger value="daily-reports">Daily Reports</TabsTrigger>
+          <TabsTrigger value="performance">Performance Analysis</TabsTrigger>
+          <TabsTrigger value="trends">Digitization Trends</TabsTrigger>
           <TabsTrigger value="custom">Custom Reports</TabsTrigger>
         </TabsList>
         
-        <TabsContent value="progress">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ActivityChart 
-              className="lg:col-span-2" 
-              data={stats?.activityData || []}
-              title="Daily Digitization Activity"
-            />
-            <FileStatusBreakdown 
-              data={stats?.filesByStatus || {}}
-              title="Files by Current Status"
-            />
-          </div>
+        <TabsContent value="daily-reports">
+          <Card className="shadow-sm mb-6">
+            <CardHeader>
+              <CardTitle>Daily Activity Report</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <div>
+                  <Label htmlFor="report-date">Report Date</Label>
+                  <Input id="report-date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                </div>
+                <div>
+                  <Label htmlFor="report-type">Report Type</Label>
+                  <Select defaultValue="summary">
+                    <SelectTrigger id="report-type">
+                      <SelectValue placeholder="Select Report Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="summary">Summary Report</SelectItem>
+                      <SelectItem value="detailed">Detailed Report</SelectItem>
+                      <SelectItem value="status">Status Report</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="report-format">Export Format</Label>
+                  <Select defaultValue="pdf">
+                    <SelectTrigger id="report-format">
+                      <SelectValue placeholder="Select Format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pdf">PDF Report</SelectItem>
+                      <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                      <SelectItem value="csv">CSV File</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button className="w-full">
+                    <DownloadIcon className="h-4 w-4 mr-2" />
+                    Generate Report
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
+                <div className="text-center">
+                  <BarChart className="h-12 w-12 mx-auto mb-4" />
+                  <p className="text-sm">
+                    Please select report parameters and click "Generate Report" to view the report.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="performance">
-          <Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Operator Performance</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
+                  <div className="text-center">
+                    <BarChart className="h-12 w-12 mx-auto mb-4" />
+                    <p className="text-sm">
+                      Performance metrics by operator would be shown here.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle>Processing Efficiency</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
+                  <div className="text-center">
+                    <PieChart className="h-12 w-12 mx-auto mb-4" />
+                    <p className="text-sm">
+                      Processing time and efficiency metrics would be shown here.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        
+        <TabsContent value="trends">
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Operator Performance</CardTitle>
+              <CardTitle>Digitization Trends</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Operator
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Files Processed
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Pages Digitized
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Avg. Pages/Hour
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Quality Score
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Anita Sharma
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        42
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        3,568
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        76
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        98%
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Rajiv Kumar
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        35
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        2,912
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        65
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        96%
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Priya Desai
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        38
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        3,104
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        71
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        99%
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <Label htmlFor="trend-period">Time Period</Label>
+                  <Select defaultValue="weekly">
+                    <SelectTrigger id="trend-period">
+                      <SelectValue placeholder="Select Period" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="weekly">Weekly</SelectItem>
+                      <SelectItem value="monthly">Monthly</SelectItem>
+                      <SelectItem value="quarterly">Quarterly</SelectItem>
+                      <SelectItem value="yearly">Yearly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="trend-metric">Metric</Label>
+                  <Select defaultValue="files">
+                    <SelectTrigger id="trend-metric">
+                      <SelectValue placeholder="Select Metric" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="files">Files Processed</SelectItem>
+                      <SelectItem value="pages">Pages Digitized</SelectItem>
+                      <SelectItem value="time">Processing Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button variant="outline" className="w-full">
+                    Update Chart
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
+                <div className="text-center">
+                  <LineChart className="h-12 w-12 mx-auto mb-4" />
+                  <p className="text-sm">
+                    Digitization trend chart would be displayed here.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
         
         <TabsContent value="custom">
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Custom Report Generator</CardTitle>
+              <CardTitle>Custom Report Builder</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Report Type
-                    </label>
-                    <Select
-                      value={reportType}
-                      onValueChange={setReportType}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select report type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="files">Files Report</SelectItem>
-                        <SelectItem value="operators">Operator Performance</SelectItem>
-                        <SelectItem value="scanning">Scanning Metrics</SelectItem>
-                        <SelectItem value="quality">Quality Control</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Report Format
-                    </label>
-                    <Select defaultValue="excel">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select format" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="excel">Excel (.xlsx)</SelectItem>
-                        <SelectItem value="csv">CSV</SelectItem>
-                        <SelectItem value="pdf">PDF</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div>
+                  <Label htmlFor="custom-start-date">Start Date</Label>
+                  <Input id="custom-start-date" type="date" />
                 </div>
-                
-                <div className="space-y-4">
-                  <div>
-                    <p className="block text-sm font-medium text-gray-700 mb-2">
-                      Include Fields
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="field-cnr" defaultChecked />
-                        <label htmlFor="field-cnr" className="text-sm text-gray-700">CNR Number</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="field-case" defaultChecked />
-                        <label htmlFor="field-case" className="text-sm text-gray-700">Case Details</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="field-status" defaultChecked />
-                        <label htmlFor="field-status" className="text-sm text-gray-700">Status</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="field-date" defaultChecked />
-                        <label htmlFor="field-date" className="text-sm text-gray-700">Date & Time</label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Checkbox id="field-operator" defaultChecked />
-                        <label htmlFor="field-operator" className="text-sm text-gray-700">Operator</label>
-                      </div>
-                    </div>
-                  </div>
+                <div>
+                  <Label htmlFor="custom-end-date">End Date</Label>
+                  <Input id="custom-end-date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                </div>
+                <div>
+                  <Label htmlFor="custom-type">Case Type</Label>
+                  <Select>
+                    <SelectTrigger id="custom-type">
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="civil">Civil</SelectItem>
+                      <SelectItem value="criminal">Criminal</SelectItem>
+                      <SelectItem value="writ">Writ Petition</SelectItem>
+                      <SelectItem value="appeal">Appeal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="custom-status">Status</Label>
+                  <Select>
+                    <SelectTrigger id="custom-status">
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending_scan">Pending Scan</SelectItem>
+                      <SelectItem value="handover">Handover</SelectItem>
+                      <SelectItem value="scanning">Scanning</SelectItem>
+                      <SelectItem value="qc_done">QC Done</SelectItem>
+                      <SelectItem value="upload_completed">Upload Completed</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               
-              <div className="mt-6 flex justify-end">
-                <Button>
-                  <Download className="mr-2 h-4 w-4" />
-                  Generate Report
-                </Button>
+              <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <Label htmlFor="custom-fields">Report Fields</Label>
+                  <Select>
+                    <SelectTrigger id="custom-fields">
+                      <SelectValue placeholder="Select Fields" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="standard">Standard Fields</SelectItem>
+                      <SelectItem value="detailed">Detailed Fields</SelectItem>
+                      <SelectItem value="minimal">Minimal Fields</SelectItem>
+                      <SelectItem value="custom">Custom Selection</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="custom-format">Export Format</Label>
+                  <Select defaultValue="excel">
+                    <SelectTrigger id="custom-format">
+                      <SelectValue placeholder="Select Format" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pdf">PDF Report</SelectItem>
+                      <SelectItem value="excel">Excel Spreadsheet</SelectItem>
+                      <SelectItem value="csv">CSV File</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button className="w-full">
+                    <DownloadIcon className="h-4 w-4 mr-2" />
+                    Generate Custom Report
+                  </Button>
+                </div>
+              </div>
+              
+              <div className="border rounded-lg p-8 flex items-center justify-center h-60 text-neutral-500">
+                <div className="text-center">
+                  <p className="text-sm">
+                    Configure your custom report parameters and click "Generate Custom Report" to create and download your report.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

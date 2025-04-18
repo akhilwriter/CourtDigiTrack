@@ -5,49 +5,80 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Format date to readable string
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
+  const d = new Date(date);
+  return d.toLocaleDateString('en-IN', {
+    day: '2-digit',
     month: 'short',
-    day: 'numeric'
+    year: 'numeric'
   });
 }
 
-// Format time to readable string
 export function formatTime(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit'
+  const d = new Date(date);
+  return d.toLocaleTimeString('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
   });
 }
 
-// Format a number with commas
-export function formatNumber(num: number): string {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+export function formatDateTime(date: Date | string): string {
+  const d = new Date(date);
+  return `${formatDate(d)} ${formatTime(d)}`;
 }
 
-// Capitalize first letter of each word in a string
-export function capitalizeWords(str: string): string {
-  return str
-    .split(' ')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+export function getCurrentDateTime(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
-// Format a file status for display
-export function formatStatus(status: string): string {
-  return status
-    .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
-}
-
-// Generate random transaction ID (for demo purposes)
 export function generateTransactionId(): string {
   const year = new Date().getFullYear();
-  const random = Math.floor(Math.random() * 90000) + 10000;
+  const random = Math.floor(10000 + Math.random() * 90000);
   return `TRX-${year}-${random}`;
 }
+
+export const statusColorMap: Record<string, { bg: string; text: string }> = {
+  pending_scan: { bg: 'bg-amber-100', text: 'text-amber-800' },
+  handover: { bg: 'bg-blue-100', text: 'text-blue-800' },
+  scanning: { bg: 'bg-green-100', text: 'text-green-800' },
+  qc_done: { bg: 'bg-green-100', text: 'text-green-800' },
+  upload_initiated: { bg: 'bg-purple-100', text: 'text-purple-800' },
+  upload_completed: { bg: 'bg-purple-100', text: 'text-purple-800' },
+};
+
+export const priorityColorMap: Record<string, { bg: string; text: string }> = {
+  normal: { bg: 'bg-neutral-100', text: 'text-neutral-800' },
+  high: { bg: 'bg-amber-100', text: 'text-amber-800' },
+  urgent: { bg: 'bg-red-100', text: 'text-red-800' },
+};
+
+export const statusLabels: Record<string, string> = {
+  pending_scan: 'Pending Scan',
+  handover: 'Handover',
+  scanning: 'Scanning',
+  qc_done: 'QC Done',
+  upload_initiated: 'Upload Initiated',
+  upload_completed: 'Upload Completed',
+};
+
+export const priorityLabels: Record<string, string> = {
+  normal: 'Normal',
+  high: 'High',
+  urgent: 'Urgent',
+};
+
+export const caseTypes = [
+  { value: 'civil', label: 'Civil' },
+  { value: 'criminal', label: 'Criminal' },
+  { value: 'writ', label: 'Writ Petition' },
+  { value: 'appeal', label: 'Appeal' },
+  { value: 'other', label: 'Other' },
+];
