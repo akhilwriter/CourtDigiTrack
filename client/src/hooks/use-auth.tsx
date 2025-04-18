@@ -1,45 +1,50 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
-import { apiRequest } from "@/lib/queryClient";
+import { useContext, useState, useEffect } from "react";
 import { useToast } from "./use-toast";
+import { AuthContext, type User } from "@/contexts/AuthContext";
 
-interface AuthContextType {
-  user: any | null;
-  login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
-  isLoading: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
-
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [user, setUser] = useState<any | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+export function useAuth() {
+  const { user, setUser, isAuthenticated } = useContext(AuthContext);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
   
+  // Check for existing user session
   useEffect(() => {
-    // Check for existing user session on app load
-    const storedUser = localStorage.getItem("court_user");
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (error) {
-        console.error("Error parsing stored user:", error);
-        localStorage.removeItem("court_user");
+    const checkSession = async () => {
+      setIsLoading(true);
+      const storedUser = localStorage.getItem("court_user");
+      if (storedUser) {
+        try {
+          const userData = JSON.parse(storedUser) as User;
+          setUser(userData);
+        } catch (error) {
+          console.error("Error parsing stored user:", error);
+          localStorage.removeItem("court_user");
+        }
       }
-    }
-    setIsLoading(false);
-  }, []);
+      setIsLoading(false);
+    };
+    
+    checkSession();
+  }, [setUser]);
   
   const login = async (username: string, password: string) => {
     try {
       setIsLoading(true);
-      const response = await apiRequest("POST", "/api/login", { username, password });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ username, password }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Login failed');
+      }
+
       const userData = await response.json();
-      
       setUser(userData);
       localStorage.setItem("court_user", JSON.stringify(userData));
       
@@ -47,13 +52,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
         title: "Login successful",
         description: `Welcome back, ${userData.fullName}!`,
       });
+      
+      return userData;
     } catch (error) {
       console.error("Login error:", error);
       toast({
         title: "Login failed",
-        description: "Invalid username or password. Please try again.",
+        description: error instanceof Error ? error.message : "Invalid username or password",
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsLoading(false);
     }
@@ -68,20 +76,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
   };
   
-  const value = {
+  return {
     user,
     login,
     logout,
     isLoading,
+    isAuthenticated
   };
-  
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 }

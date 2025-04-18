@@ -1,6 +1,6 @@
-import { useState, useContext } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { AuthContext } from '../App';
+import { useAuth } from '@/hooks/use-auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -26,9 +26,8 @@ const loginSchema = z.object({
 type LoginValues = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { setUser } = useContext(AuthContext);
+  const { login } = useAuth();
   const [, setLocation] = useLocation();
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<LoginValues>({
@@ -42,34 +41,11 @@ export default function Login() {
   async function onSubmit(data: LoginValues) {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Login failed');
-      }
-
-      const userData = await response.json();
-      setUser(userData);
+      await login(data.username, data.password);
       setLocation('/');
-      
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${userData.fullName}`,
-      });
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: error instanceof Error ? error.message : "Invalid username or password",
-        variant: "destructive",
-      });
+      // Error is already handled in useAuth hook
+      console.error("Login error:", error);
     } finally {
       setIsLoading(false);
     }

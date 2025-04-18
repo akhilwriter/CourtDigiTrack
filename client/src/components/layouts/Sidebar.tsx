@@ -1,16 +1,15 @@
-import { useContext } from 'react';
 import { Link, useLocation } from 'wouter';
-import { AuthContext } from '@/App';
+import { useAuth } from '@/hooks/use-auth';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { LogOut, BarChart2, FileInput, FileOutput, Settings, Users } from 'lucide-react';
 
 export default function Sidebar() {
   const [location] = useLocation();
-  const { user, setUser } = useContext(AuthContext);
+  const { user, logout } = useAuth();
 
   const handleLogout = () => {
-    setUser(null);
+    logout();
   };
 
   const navigation = [

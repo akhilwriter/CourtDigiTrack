@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react';
-import { AuthContext } from '@/App';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { fileReceiptFormSchema } from '@shared/schema';
@@ -34,7 +34,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 type FormValues = z.infer<typeof fileReceiptFormSchema>;
 
 export default function FileReceiptForm() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isQuerying, setIsQuerying] = useState(false);
   

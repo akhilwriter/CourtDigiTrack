@@ -1,5 +1,5 @@
-import { useState, useContext } from 'react';
-import { AuthContext } from '@/App';
+import { useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { 
   Select,
@@ -25,7 +25,7 @@ interface HandoverModalProps {
 }
 
 export default function HandoverModal({ file, isOpen, onClose }: HandoverModalProps) {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const { toast } = useToast();
   const [selectedOperator, setSelectedOperator] = useState("");
   const [handoverMode, setHandoverMode] = useState("manual");
