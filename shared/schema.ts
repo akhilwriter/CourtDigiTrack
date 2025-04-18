@@ -59,16 +59,63 @@ export const insertFileHandoverSchema = createInsertSchema(fileHandovers).omit({
 // File lifecycle tracking table and schemas
 export const fileLifecycles = pgTable("file_lifecycles", {
   id: serial("id").primaryKey(),
-  fileReceiptId: integer("file_receipt_id").notNull(),
+  fileReceiptId: integer("file_receipt_id").notNull().references(() => fileReceipts.id),
   status: text("status").notNull(),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
-  updatedById: integer("updated_by_id").notNull(),
+  updatedById: integer("updated_by_id").notNull().references(() => users.id),
   remarks: text("remarks"),
 });
 
 export const insertFileLifecycleSchema = createInsertSchema(fileLifecycles).omit({
   id: true,
 });
+
+// Relations definitions
+export const usersRelations = relations(users, ({ many }) => ({
+  receivedFiles: many(fileReceipts, { relationName: "user_received_files" }),
+  handoversBy: many(fileHandovers, { relationName: "user_handovers_by" }),
+  handoversTo: many(fileHandovers, { relationName: "user_handovers_to" }),
+  lifecycleUpdates: many(fileLifecycles, { relationName: "user_lifecycle_updates" })
+}));
+
+export const fileReceiptsRelations = relations(fileReceipts, ({ one, many }) => ({
+  receivedBy: one(users, {
+    fields: [fileReceipts.receivedById],
+    references: [users.id],
+    relationName: "user_received_files"
+  }),
+  handovers: many(fileHandovers),
+  lifecycles: many(fileLifecycles)
+}));
+
+export const fileHandoversRelations = relations(fileHandovers, ({ one }) => ({
+  fileReceipt: one(fileReceipts, {
+    fields: [fileHandovers.fileReceiptId],
+    references: [fileReceipts.id]
+  }),
+  handoverBy: one(users, {
+    fields: [fileHandovers.handoverById],
+    references: [users.id],
+    relationName: "user_handovers_by"
+  }),
+  handoverTo: one(users, {
+    fields: [fileHandovers.handoverToId],
+    references: [users.id],
+    relationName: "user_handovers_to"
+  })
+}));
+
+export const fileLifecyclesRelations = relations(fileLifecycles, ({ one }) => ({
+  fileReceipt: one(fileReceipts, {
+    fields: [fileLifecycles.fileReceiptId],
+    references: [fileReceipts.id]
+  }),
+  updatedBy: one(users, {
+    fields: [fileLifecycles.updatedById],
+    references: [users.id],
+    relationName: "user_lifecycle_updates"
+  })
+}));
 
 // Export types
 export type User = typeof users.$inferSelect;

@@ -5,7 +5,7 @@ import {
   fileLifecycles, FileLifecycle, InsertFileLifecycle
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, gte, and } from "drizzle-orm";
+import { eq, desc, gte, and, sql } from "drizzle-orm";
 
 // Define full interface for storage operations
 export interface IStorage {
@@ -309,9 +309,12 @@ export class DatabaseStorage implements IStorage {
   async createFileReceipt(receipt: InsertFileReceipt): Promise<FileReceipt> {
     const now = new Date();
     // Generate transaction ID
-    const receiptsCount = await db.select({ count: db.fn.count() }).from(fileReceipts);
-    const count = Number(receiptsCount[0].count) + 1;
-    const transactionId = `TRX-${now.getFullYear()}-${count.toString().padStart(5, '0')}`;
+    const { count } = await db.execute<{ count: number }>(
+      `SELECT COUNT(*) as count FROM file_receipts`
+    ).then(result => result[0] || { count: 0 });
+    
+    const nextCount = Number(count) + 1;
+    const transactionId = `TRX-${now.getFullYear()}-${nextCount.toString().padStart(5, '0')}`;
     
     // Create receipt with defaults
     const [newReceipt] = await db
@@ -463,37 +466,26 @@ export class DatabaseStorage implements IStorage {
     today.setHours(0, 0, 0, 0);
     
     // Get pending receipts count
-    const pendingReceiptResult = await db
-      .select({ count: db.fn.count() })
-      .from(fileReceipts)
-      .where(eq(fileReceipts.status, "pending_scan"));
-    const pendingReceipt = Number(pendingReceiptResult[0].count);
+    const { pendingReceipt } = await db.execute<{ pendingReceipt: number }>(
+      `SELECT COUNT(*) as "pendingReceipt" FROM file_receipts WHERE status = 'pending_scan'`
+    ).then(result => result[0] || { pendingReceipt: 0 });
     
     // Get received today count
-    const receivedTodayResult = await db
-      .select({ count: db.fn.count() })
-      .from(fileReceipts)
-      .where(gte(fileReceipts.receivedAt, today));
-    const receivedToday = Number(receivedTodayResult[0].count);
+    const { receivedToday } = await db.execute<{ receivedToday: number }>(
+      `SELECT COUNT(*) as "receivedToday" FROM file_receipts WHERE received_at >= $1`,
+      [today]
+    ).then(result => result[0] || { receivedToday: 0 });
     
     // Get scanned today count
-    const scannedTodayResult = await db
-      .select({ count: db.fn.count() })
-      .from(fileLifecycles)
-      .where(
-        and(
-          eq(fileLifecycles.status, "scanning"),
-          gte(fileLifecycles.timestamp, today)
-        )
-      );
-    const scannedToday = Number(scannedTodayResult[0].count);
+    const { scannedToday } = await db.execute<{ scannedToday: number }>(
+      `SELECT COUNT(*) as "scannedToday" FROM file_lifecycles WHERE status = 'scanning' AND timestamp >= $1`,
+      [today]
+    ).then(result => result[0] || { scannedToday: 0 });
     
     // Get upload completed count
-    const uploadCompletedResult = await db
-      .select({ count: db.fn.count() })
-      .from(fileReceipts)
-      .where(eq(fileReceipts.status, "upload_completed"));
-    const uploadCompleted = Number(uploadCompletedResult[0].count);
+    const { uploadCompleted } = await db.execute<{ uploadCompleted: number }>(
+      `SELECT COUNT(*) as "uploadCompleted" FROM file_receipts WHERE status = 'upload_completed'`
+    ).then(result => result[0] || { uploadCompleted: 0 });
     
     return {
       pendingReceipt,
