@@ -10,6 +10,7 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   fullName: text("full_name").notNull(),
   role: text("role").notNull().default("user"),
+  permissions: text("permissions").notNull().default("view"),  // 'view' or 'edit'
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -17,6 +18,7 @@ export const insertUserSchema = createInsertSchema(users).pick({
   password: true,
   fullName: true,
   role: true,
+  permissions: true,
 });
 
 // File receipt table and schemas
@@ -136,7 +138,8 @@ export const fileReceiptFormSchema = insertFileReceiptSchema.extend({
   caseType: z.string().min(1, "Case type is required"),
   caseYear: z.string().min(4, "Please enter a valid year").max(4),
   caseNumber: z.string().min(1, "Case number is required"),
-  pageCount: z.number().min(1, "Page count must be at least 1")
+  pageCount: z.number().min(1, "Page count must be at least 1"),
+  receivedAt: z.string().or(z.date()),
 });
 
 // Extended file handover schema with validation
