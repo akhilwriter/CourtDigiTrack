@@ -339,6 +339,41 @@ export class DatabaseStorage implements IStorage {
   async getUsers(): Promise<User[]> {
     return await db.select().from(users);
   }
+  
+  async updateUser(user: { id: number; username: string; fullName: string; role: string; permissions: string; password?: string }): Promise<User> {
+    // Create update object with only the fields that should be updated
+    const updateData: any = {
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role,
+      permissions: user.permissions
+    };
+    
+    // Only add password if it's provided
+    if (user.password) {
+      updateData.password = user.password;
+    }
+    
+    const [updatedUser] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, user.id))
+      .returning();
+      
+    if (!updatedUser) {
+      throw new Error(`User with ID ${user.id} not found`);
+    }
+    
+    return updatedUser;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db
+      .delete(users)
+      .where(eq(users.id, id));
+      
+    return true; // If no error was thrown, deletion was successful
+  }
 
   // File Receipt operations
   async createFileReceipt(receipt: InsertFileReceipt): Promise<FileReceipt> {

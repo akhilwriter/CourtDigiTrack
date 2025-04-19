@@ -52,7 +52,7 @@ export default function UserManagement() {
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
   const [isEditUserOpen, setIsEditUserOpen] = useState(false);
   const [isDeleteUserOpen, setIsDeleteUserOpen] = useState(false);
-  const [selectedUser, setSelectedUser] = useState<null | { id: number; username: string; fullName: string; role: string; permissions: string }>(null);
+  const [selectedUser, setSelectedUser] = useState<null | { id: number; username: string; fullName: string; role: string; permissions: string; password?: string }>(null);
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
@@ -191,7 +191,17 @@ export default function UserManagement() {
       return;
     }
 
-    updateUser.mutate(selectedUser);
+    // Create a new object with only the fields that should be sent to the server
+    const userToUpdate = {
+      id: selectedUser.id,
+      username: selectedUser.username,
+      fullName: selectedUser.fullName,
+      role: selectedUser.role,
+      permissions: selectedUser.permissions,
+      ...(selectedUser.password && selectedUser.password.trim() !== '' ? { password: selectedUser.password } : {})
+    };
+
+    updateUser.mutate(userToUpdate);
   };
   
   const handleDeleteUser = () => {

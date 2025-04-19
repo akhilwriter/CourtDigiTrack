@@ -187,6 +187,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create file receipt" });
     }
   });
+  
+  // Update file receipt endpoint
+  app.put("/api/file-receipts/:id", async (req: Request, res: Response) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid ID format" });
+      }
+      
+      const fileReceipt = await storage.getFileReceipt(id);
+      if (!fileReceipt) {
+        return res.status(404).json({ message: "File receipt not found" });
+      }
+      
+      // Only allow updating certain fields
+      const updateData = {
+        id,
+        priority: req.body.priority || fileReceipt.priority,
+        partyNames: req.body.partyNames || fileReceipt.partyNames,
+        remarks: req.body.remarks || fileReceipt.remarks
+      };
+      
+      const updatedReceipt = await storage.updateFileReceipt(updateData);
+      res.json(updatedReceipt);
+    } catch (error) {
+      console.error("Error updating file receipt:", error);
+      res.status(500).json({ message: "Failed to update file receipt" });
+    }
+  });
 
   // FILE HANDOVER ROUTES
   app.get("/api/file-handovers", async (req: Request, res: Response) => {
