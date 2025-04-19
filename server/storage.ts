@@ -25,6 +25,7 @@ export interface IStorage {
   getAllFileReceipts(): Promise<FileReceipt[]>;
   getFileReceiptsByStatus(status: string): Promise<FileReceipt[]>;
   updateFileReceiptStatus(id: number, status: string): Promise<FileReceipt | undefined>;
+  updateFileReceipt(receipt: { id: number; priority?: string; partyNames?: string | null; remarks?: string | null }): Promise<FileReceipt>;
 
   // File Handover operations
   createFileHandover(handover: InsertFileHandover): Promise<FileHandover>;
@@ -200,6 +201,23 @@ export class MemStorage implements IStorage {
       return updatedReceipt;
     }
     return undefined;
+  }
+  
+  async updateFileReceipt(receipt: { id: number; priority?: string; partyNames?: string | null; remarks?: string | null }): Promise<FileReceipt> {
+    const existingReceipt = await this.getFileReceipt(receipt.id);
+    if (!existingReceipt) {
+      throw new Error(`File receipt with ID ${receipt.id} not found`);
+    }
+    
+    const updatedReceipt: FileReceipt = {
+      ...existingReceipt,
+      priority: receipt.priority || existingReceipt.priority,
+      partyNames: receipt.partyNames !== undefined ? receipt.partyNames : existingReceipt.partyNames,
+      remarks: receipt.remarks !== undefined ? receipt.remarks : existingReceipt.remarks
+    };
+    
+    this.fileReceipts.set(receipt.id, updatedReceipt);
+    return updatedReceipt;
   }
 
   // File Handover operations
@@ -456,6 +474,34 @@ export class DatabaseStorage implements IStorage {
       .set({ status })
       .where(eq(fileReceipts.id, id))
       .returning();
+    return updatedReceipt;
+  }
+  
+  async updateFileReceipt(receipt: { id: number; priority?: string; partyNames?: string | null; remarks?: string | null }): Promise<FileReceipt> {
+    const updateData: any = {};
+    
+    if (receipt.priority !== undefined) {
+      updateData.priority = receipt.priority;
+    }
+    
+    if (receipt.partyNames !== undefined) {
+      updateData.partyNames = receipt.partyNames;
+    }
+    
+    if (receipt.remarks !== undefined) {
+      updateData.remarks = receipt.remarks;
+    }
+    
+    const [updatedReceipt] = await db
+      .update(fileReceipts)
+      .set(updateData)
+      .where(eq(fileReceipts.id, receipt.id))
+      .returning();
+      
+    if (!updatedReceipt) {
+      throw new Error(`File receipt with ID ${receipt.id} not found`);
+    }
+    
     return updatedReceipt;
   }
 

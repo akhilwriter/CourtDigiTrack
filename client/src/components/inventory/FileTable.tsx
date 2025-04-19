@@ -22,6 +22,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Share2, Eye, Search, Filter } from "lucide-react";
 import HandoverModal from './HandoverModal';
+import FileDetailsModal from './FileDetailsModal';
+import FileEditModal from './FileEditModal';
 import { formatDate, formatTime, statusColorMap, priorityColorMap, statusLabels, priorityLabels } from '@/lib/utils';
 
 interface FileTableProps {
@@ -38,6 +40,8 @@ export default function FileTable({
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFile, setSelectedFile] = useState<FileReceipt | null>(null);
   const [showHandoverModal, setShowHandoverModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -59,13 +63,13 @@ export default function FileTable({
   };
 
   const handleViewDetails = (file: FileReceipt) => {
-    // In a complete app, this would navigate to a details page
-    console.log('View details for file:', file);
+    setSelectedFile(file);
+    setShowDetailsModal(true);
   };
 
   const handleEditFile = (file: FileReceipt) => {
-    // In a complete app, this would open an edit form
-    console.log('Edit file:', file);
+    setSelectedFile(file);
+    setShowEditModal(true);
   };
 
   const filteredReceipts = fileReceipts?.filter(file => 
@@ -164,8 +168,7 @@ export default function FileTable({
                             variant="ghost"
                             size="icon"
                             onClick={() => handleEditFile(file)}
-                            disabled={!canHandover(file)}
-                            className={!canHandover(file) ? "text-neutral-400" : "text-primary hover:text-secondary"}
+                            className="text-primary hover:text-secondary"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -242,11 +245,23 @@ export default function FileTable({
       </Card>
 
       {selectedFile && (
-        <HandoverModal
-          file={selectedFile}
-          isOpen={showHandoverModal}
-          onClose={() => setShowHandoverModal(false)}
-        />
+        <>
+          <HandoverModal
+            file={selectedFile}
+            isOpen={showHandoverModal}
+            onClose={() => setShowHandoverModal(false)}
+          />
+          <FileDetailsModal
+            file={selectedFile}
+            isOpen={showDetailsModal}
+            onClose={() => setShowDetailsModal(false)}
+          />
+          <FileEditModal
+            file={selectedFile}
+            isOpen={showEditModal}
+            onClose={() => setShowEditModal(false)}
+          />
+        </>
       )}
     </>
   );
