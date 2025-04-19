@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import StatCard from '@/components/dashboard/StatCard';
 import FileTable from '@/components/inventory/FileTable';
+import InventoryKPIs from '@/components/dashboard/inventory-kpis';
 import { HourglassIcon, FileTextIcon, FileScan, UploadCloudIcon, PieChart, BarChart, Ellipsis } from 'lucide-react';
 import { FileReceipt } from '@shared/schema';
 
@@ -90,19 +91,9 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-        <Card className="shadow-sm lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-lg">Digitization Status</CardTitle>
-          </CardHeader>
-          <CardContent className="flex justify-center items-center p-6">
-            <div className="w-full h-48 flex items-center justify-center text-neutral-500">
-              <PieChart className="h-12 w-12" />
-              <div className="ml-4 text-sm">
-                <p>Status distribution chart would appear here in a complete implementation.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="lg:col-span-1">
+          <InventoryKPIs />
+        </div>
 
         <Card className="shadow-sm lg:col-span-2">
           <CardHeader>

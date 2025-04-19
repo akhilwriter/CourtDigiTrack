@@ -174,9 +174,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/file-receipts", async (req: Request, res: Response) => {
     try {
       console.log("Received file receipt data:", JSON.stringify(req.body, null, 2));
+      
+      // Parse the data with the schema
       const fileReceiptData = fileReceiptFormSchema.parse(req.body);
-      console.log("Parsed file receipt data:", JSON.stringify(fileReceiptData, null, 2));
-      const fileReceipt = await storage.createFileReceipt(fileReceiptData);
+      
+      // Convert string date to Date object if needed
+      const processedData = {
+        ...fileReceiptData,
+        receivedAt: typeof fileReceiptData.receivedAt === 'string' 
+          ? new Date(fileReceiptData.receivedAt) 
+          : fileReceiptData.receivedAt
+      };
+      
+      console.log("Parsed file receipt data:", JSON.stringify(processedData, null, 2));
+      const fileReceipt = await storage.createFileReceipt(processedData);
       res.status(201).json(fileReceipt);
     } catch (error) {
       if (error instanceof z.ZodError) {
