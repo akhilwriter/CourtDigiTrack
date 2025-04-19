@@ -103,13 +103,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/file-receipts", async (req: Request, res: Response) => {
     try {
+      console.log("Received file receipt data:", JSON.stringify(req.body, null, 2));
       const fileReceiptData = fileReceiptFormSchema.parse(req.body);
+      console.log("Parsed file receipt data:", JSON.stringify(fileReceiptData, null, 2));
       const fileReceipt = await storage.createFileReceipt(fileReceiptData);
       res.status(201).json(fileReceipt);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Validation error:", error.errors);
         return res.status(400).json({ message: "Invalid file receipt data", errors: error.errors });
       }
+      console.error("Error creating file receipt:", error);
       res.status(500).json({ message: "Failed to create file receipt" });
     }
   });
