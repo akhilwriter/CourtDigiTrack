@@ -303,7 +303,14 @@ export default function FileReceiptForm() {
                   <FormItem>
                     <FormLabel>Receipt Date & Time</FormLabel>
                     <FormControl>
-                      <Input type="datetime-local" {...field} />
+                      <Input 
+                        type="datetime-local" 
+                        {...field} 
+                        onChange={(e) => {
+                          // Ensure we're handling the datetime string format correctly
+                          field.onChange(e.target.value);
+                        }}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
