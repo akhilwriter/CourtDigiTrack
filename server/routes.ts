@@ -64,6 +64,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create user" });
     }
   });
+  
+  // Update user endpoint
+  app.put("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // If updating username, check if it's unique
+      if (req.body.username && req.body.username !== existingUser.username) {
+        const userWithSameUsername = await storage.getUserByUsername(req.body.username);
+        if (userWithSameUsername && userWithSameUsername.id !== userId) {
+          return res.status(400).json({ message: "Username already exists" });
+        }
+      }
+      
+      // Create update object with only fields that are provided
+      const updateData = {
+        id: userId,
+        username: req.body.username || existingUser.username,
+        fullName: req.body.fullName || existingUser.fullName,
+        role: req.body.role || existingUser.role,
+        permissions: req.body.permissions || existingUser.permissions || 'view',
+        ...(req.body.password ? { password: req.body.password } : {})
+      };
+      
+      const updatedUser = await storage.updateUser(updateData);
+      
+      // Remove password before sending response
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+  
+  // Delete user endpoint
+  app.delete("/api/users/:id", async (req: Request, res: Response) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't allow deleting the admin user with ID 1
+      if (userId === 1) {
+        return res.status(403).json({ message: "Cannot delete admin user" });
+      }
+      
+      await storage.deleteUser(userId);
+      res.json({ success: true, message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      res.status(500).json({ message: "Failed to delete user" });
+    }
+  });
 
   // FILE RECEIPT ROUTES
   app.get("/api/file-receipts", async (req: Request, res: Response) => {

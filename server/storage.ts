@@ -13,6 +13,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(user: { id: number; username: string; fullName: string; role: string; permissions: string; password?: string }): Promise<User>;
+  deleteUser(id: number): Promise<boolean>;
   getUsers(): Promise<User[]>;
 
   // File Receipt operations
@@ -98,6 +100,33 @@ export class MemStorage implements IStorage {
 
   async getUsers(): Promise<User[]> {
     return Array.from(this.users.values());
+  }
+  
+  async updateUser(user: { id: number; username: string; fullName: string; role: string; permissions: string; password?: string }): Promise<User> {
+    const existingUser = await this.getUser(user.id);
+    if (!existingUser) {
+      throw new Error(`User with ID ${user.id} not found`);
+    }
+    
+    const updatedUser: User = {
+      ...existingUser,
+      username: user.username,
+      fullName: user.fullName,
+      role: user.role,
+      permissions: user.permissions,
+      ...(user.password ? { password: user.password } : {})
+    };
+    
+    this.users.set(user.id, updatedUser);
+    return updatedUser;
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    if (!this.users.has(id)) {
+      return false;
+    }
+    
+    return this.users.delete(id);
   }
 
   // File Receipt operations

@@ -50,6 +50,9 @@ import { useToast } from "@/hooks/use-toast";
 export default function UserManagement() {
   const { toast } = useToast();
   const [isAddUserOpen, setIsAddUserOpen] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [isDeleteUserOpen, setIsDeleteUserOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<null | { id: number; username: string; fullName: string; role: string; permissions: string }>(null);
   const [newUser, setNewUser] = useState({
     username: '',
     password: '',
@@ -103,6 +106,61 @@ export default function UserManagement() {
       console.error("Error creating user:", error);
     },
   });
+  
+  const updateUser = useMutation({
+    mutationFn: async (userData: {
+      id: number;
+      username: string;
+      fullName: string;
+      role: string;
+      permissions: string;
+      password?: string;
+    }) => {
+      return await apiRequest('PUT', `/api/users/${userData.id}`, userData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setIsEditUserOpen(false);
+      setSelectedUser(null);
+      toast({
+        title: "Success!",
+        description: "User has been updated successfully.",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to update user. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error updating user:", error);
+    },
+  });
+  
+  const deleteUser = useMutation({
+    mutationFn: async (userId: number) => {
+      return await apiRequest('DELETE', `/api/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setIsDeleteUserOpen(false);
+      setSelectedUser(null);
+      toast({
+        title: "Success!",
+        description: "User has been deleted successfully.",
+        variant: "default",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to delete user. Please try again.",
+        variant: "destructive",
+      });
+      console.error("Error deleting user:", error);
+    },
+  });
 
   const filteredUsers = users?.filter((user: { username: string; fullName: string }) => 
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -121,6 +179,32 @@ export default function UserManagement() {
     }
 
     createUser.mutate(newUser);
+  };
+  
+  const handleEditUser = () => {
+    if (!selectedUser || !selectedUser.username || !selectedUser.fullName) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    updateUser.mutate(selectedUser);
+  };
+  
+  const handleDeleteUser = () => {
+    if (!selectedUser || !selectedUser.id) {
+      toast({
+        title: "Error",
+        description: "Invalid user selected for deletion.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    deleteUser.mutate(selectedUser.id);
   };
 
   return (
@@ -192,10 +276,38 @@ export default function UserManagement() {
                       <TableCell className="capitalize">{user.permissions || 'view'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
-                          <Button variant="ghost" size="icon" className="text-primary hover:text-secondary">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-primary hover:text-secondary"
+                            onClick={() => {
+                              setSelectedUser({
+                                id: user.id,
+                                username: user.username,
+                                fullName: user.fullName,
+                                role: user.role,
+                                permissions: user.permissions || 'view'
+                              });
+                              setIsEditUserOpen(true);
+                            }}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/90">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="text-destructive hover:text-destructive/90"
+                            onClick={() => {
+                              setSelectedUser({
+                                id: user.id,
+                                username: user.username,
+                                fullName: user.fullName,
+                                role: user.role,
+                                permissions: user.permissions || 'view'
+                              });
+                              setIsDeleteUserOpen(true);
+                            }}
+                          >
                             <Trash className="h-4 w-4" />
                           </Button>
                         </div>
@@ -298,6 +410,143 @@ export default function UserManagement() {
             </Button>
             <Button onClick={handleAddUser} disabled={createUser.isPending}>
               {createUser.isPending ? "Creating..." : "Create User"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>
+              Update user information and permissions.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="grid gap-4 py-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-full-name">Full Name</Label>
+                <Input 
+                  id="edit-full-name" 
+                  placeholder="Enter full name"
+                  value={selectedUser.fullName}
+                  onChange={(e) => setSelectedUser({...selectedUser, fullName: e.target.value})}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="edit-username">Username</Label>
+                <Input 
+                  id="edit-username" 
+                  placeholder="Enter username"
+                  value={selectedUser.username}
+                  onChange={(e) => setSelectedUser({...selectedUser, username: e.target.value})}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="edit-password">New Password (leave blank to keep current password)</Label>
+                <Input 
+                  id="edit-password" 
+                  type="password" 
+                  placeholder="Enter new password"
+                  value={selectedUser.password || ''}
+                  onChange={(e) => setSelectedUser({...selectedUser, password: e.target.value || undefined})}
+                />
+              </div>
+              
+              <div className="grid gap-2">
+                <Label htmlFor="edit-role">Role</Label>
+                <Select 
+                  value={selectedUser.role}
+                  onValueChange={(value) => setSelectedUser({...selectedUser, role: value})}
+                >
+                  <SelectTrigger id="edit-role">
+                    <SelectValue placeholder="Select user role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="admin">Administrator</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                    <SelectItem value="operator">Scanning Operator</SelectItem>
+                    <SelectItem value="user">Regular User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="edit-permissions">Permissions</Label>
+                <Select 
+                  value={selectedUser.permissions}
+                  onValueChange={(value) => setSelectedUser({...selectedUser, permissions: value})}
+                >
+                  <SelectTrigger id="edit-permissions">
+                    <SelectValue placeholder="Select user permissions" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="view">View Only</SelectItem>
+                    <SelectItem value="edit">Edit</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditUserOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditUser} disabled={updateUser.isPending}>
+              {updateUser.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <Dialog open={isDeleteUserOpen} onOpenChange={setIsDeleteUserOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete User</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this user? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {selectedUser && (
+            <div className="py-4">
+              <p className="mb-4">
+                You are about to delete the following user:
+              </p>
+              <dl className="space-y-2">
+                <div className="flex">
+                  <dt className="w-24 font-medium">Username:</dt>
+                  <dd>{selectedUser.username}</dd>
+                </div>
+                <div className="flex">
+                  <dt className="w-24 font-medium">Full Name:</dt>
+                  <dd>{selectedUser.fullName}</dd>
+                </div>
+                <div className="flex">
+                  <dt className="w-24 font-medium">Role:</dt>
+                  <dd className="capitalize">{selectedUser.role}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteUserOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteUser} 
+              disabled={deleteUser.isPending}
+            >
+              {deleteUser.isPending ? "Deleting..." : "Delete User"}
             </Button>
           </DialogFooter>
         </DialogContent>
