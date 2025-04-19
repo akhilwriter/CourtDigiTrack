@@ -89,7 +89,8 @@ export class MemStorage implements IStorage {
     const newUser: User = { 
       ...user, 
       id,
-      role: user.role || 'user' // Ensure role is never undefined
+      role: user.role || 'user', // Ensure role is never undefined
+      permissions: user.permissions || 'view' // Ensure permissions is never undefined
     };
     this.users.set(id, newUser);
     return newUser;
@@ -294,9 +295,14 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(user: InsertUser): Promise<User> {
     const defaultRole = user.role || 'user';
+    const defaultPermissions = user.permissions || 'view';
     const [createdUser] = await db
       .insert(users)
-      .values({ ...user, role: defaultRole })
+      .values({ 
+        ...user, 
+        role: defaultRole,
+        permissions: defaultPermissions 
+      })
       .returning();
     return createdUser;
   }
@@ -326,7 +332,8 @@ export class DatabaseStorage implements IStorage {
         status: receipt.status || "pending_scan",
         partyNames: receipt.partyNames || null,
         priority: receipt.priority || "normal",
-        receivedAt: receipt.receivedAt || now,
+        // Convert string date to Date object if needed
+        receivedAt: typeof receipt.receivedAt === 'string' ? new Date(receipt.receivedAt) : (receipt.receivedAt || now),
         remarks: receipt.remarks || null
       })
       .returning();

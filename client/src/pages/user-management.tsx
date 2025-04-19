@@ -104,7 +104,7 @@ export default function UserManagement() {
     },
   });
 
-  const filteredUsers = users?.filter(user => 
+  const filteredUsers = users?.filter((user: { username: string; fullName: string }) => 
     user.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
     user.fullName.toLowerCase().includes(searchQuery.toLowerCase())
   ) || [];
@@ -183,7 +183,7 @@ export default function UserManagement() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.map((user) => (
+                  {filteredUsers.map((user: { id: number; username: string; fullName: string; role: string; permissions?: string }) => (
                     <TableRow key={user.id} className="hover:bg-neutral-50">
                       <TableCell className="font-medium">{user.id}</TableCell>
                       <TableCell>{user.username}</TableCell>

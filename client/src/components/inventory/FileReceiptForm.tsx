@@ -305,11 +305,14 @@ export default function FileReceiptForm() {
                     <FormControl>
                       <Input 
                         type="datetime-local" 
-                        {...field} 
+                        value={typeof field.value === 'string' ? field.value : getCurrentDateTime()}
                         onChange={(e) => {
                           // Ensure we're handling the datetime string format correctly
                           field.onChange(e.target.value);
                         }}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
                       />
                     </FormControl>
                     <FormMessage />
@@ -324,7 +327,15 @@ export default function FileReceiptForm() {
                   <FormItem>
                     <FormLabel>Remarks</FormLabel>
                     <FormControl>
-                      <Textarea rows={1} placeholder="Any additional notes" {...field} />
+                      <Textarea 
+                        rows={1} 
+                        placeholder="Any additional notes" 
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
