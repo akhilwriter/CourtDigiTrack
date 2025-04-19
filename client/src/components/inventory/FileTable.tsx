@@ -20,10 +20,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Share2, Eye, Search, Filter } from "lucide-react";
+import { Edit, Share2, Eye, Search, Filter, RotateCcw } from "lucide-react";
 import HandoverModal from './HandoverModal';
 import FileDetailsModal from './FileDetailsModal';
 import FileEditModal from './FileEditModal';
+import FileReturnModal from './FileReturnModal';
 import { formatDate, formatTime, statusColorMap, priorityColorMap, statusLabels, priorityLabels } from '@/lib/utils';
 
 interface FileTableProps {
@@ -42,6 +43,7 @@ export default function FileTable({
   const [showHandoverModal, setShowHandoverModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
@@ -71,6 +73,13 @@ export default function FileTable({
     setSelectedFile(file);
     setShowEditModal(true);
   };
+  
+  const handleReturnFile = (file: FileReceipt) => {
+    setSelectedFile(file);
+    setShowReturnModal(true);
+  };
+  
+  const canReturn = (file: FileReceipt) => file.status === 'upload_completed';
 
   const filteredReceipts = fileReceipts?.filter(file => 
     file.cnrNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -189,6 +198,15 @@ export default function FileTable({
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleReturnFile(file)}
+                            disabled={!canReturn(file)}
+                            className={!canReturn(file) ? "text-neutral-400" : "text-green-600 hover:text-green-700"}
+                          >
+                            <RotateCcw className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -260,6 +278,11 @@ export default function FileTable({
             file={selectedFile}
             isOpen={showEditModal}
             onClose={() => setShowEditModal(false)}
+          />
+          <FileReturnModal
+            file={selectedFile}
+            isOpen={showReturnModal}
+            onClose={() => setShowReturnModal(false)}
           />
         </>
       )}

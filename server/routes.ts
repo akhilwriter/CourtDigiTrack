@@ -307,6 +307,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch dashboard statistics" });
     }
   });
+  
+  // INVENTORY STATS ROUTE
+  app.get("/api/stats/inventory", async (req: Request, res: Response) => {
+    try {
+      // Get all file receipts
+      const fileReceipts = await storage.getAllFileReceipts();
+      
+      // Calculate counts by status
+      const pendingScan = fileReceipts.filter(file => file.status === 'pending_scan').length;
+      const inScanning = fileReceipts.filter(file => file.status === 'scanning' || file.status === 'handover').length;
+      const inQC = fileReceipts.filter(file => file.status === 'scan_completed' || file.status === 'qc_done').length;
+      const uploadInitiated = fileReceipts.filter(file => file.status === 'upload_initiated').length;
+      const uploadCompleted = fileReceipts.filter(file => file.status === 'upload_completed').length;
+      const returned = fileReceipts.filter(file => file.status === 'returned').length;
+      
+      res.json({
+        totalFiles: fileReceipts.length,
+        pendingScan,
+        inScanning,
+        inQC,
+        uploadInitiated,
+        uploadCompleted,
+        returned
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch inventory statistics" });
+    }
+  });
 
   // For simulating external Court API to fetch case details
   app.get("/api/external/case-details", async (req: Request, res: Response) => {
