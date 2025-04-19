@@ -54,7 +54,8 @@ export default function UserManagement() {
     username: '',
     password: '',
     fullName: '',
-    role: 'user'
+    role: 'user',
+    permissions: 'view'
   });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -73,6 +74,7 @@ export default function UserManagement() {
       password: string;
       fullName: string;
       role: string;
+      permissions: string;
     }) => {
       return await apiRequest('POST', '/api/users', userData);
     },
@@ -83,7 +85,8 @@ export default function UserManagement() {
         username: '',
         password: '',
         fullName: '',
-        role: 'user'
+        role: 'user',
+        permissions: 'view'
       });
       toast({
         title: "Success!",
@@ -175,6 +178,7 @@ export default function UserManagement() {
                     <TableHead>Username</TableHead>
                     <TableHead>Full Name</TableHead>
                     <TableHead>Role</TableHead>
+                    <TableHead>Permissions</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -185,6 +189,7 @@ export default function UserManagement() {
                       <TableCell>{user.username}</TableCell>
                       <TableCell>{user.fullName}</TableCell>
                       <TableCell className="capitalize">{user.role}</TableCell>
+                      <TableCell className="capitalize">{user.permissions || 'view'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
                           <Button variant="ghost" size="icon" className="text-primary hover:text-secondary">
@@ -266,6 +271,22 @@ export default function UserManagement() {
                   <SelectItem value="supervisor">Supervisor</SelectItem>
                   <SelectItem value="operator">Scanning Operator</SelectItem>
                   <SelectItem value="user">Regular User</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="permissions">Permissions</Label>
+              <Select 
+                value={newUser.permissions}
+                onValueChange={(value) => setNewUser({...newUser, permissions: value})}
+              >
+                <SelectTrigger id="permissions">
+                  <SelectValue placeholder="Select user permissions" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="view">View Only</SelectItem>
+                  <SelectItem value="edit">Edit</SelectItem>
                 </SelectContent>
               </Select>
             </div>

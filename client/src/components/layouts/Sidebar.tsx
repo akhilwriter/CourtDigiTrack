@@ -32,8 +32,8 @@ export default function Sidebar() {
             <span className="font-bold">HC</span>
           </div>
           <div>
-            <h1 className="font-semibold text-sm">High Court</h1>
-            <p className="text-xs text-neutral-600">Document Digitization System</p>
+            <h1 className="font-semibold text-sm">Kerala HC</h1>
+            <p className="text-xs text-neutral-600">Digitization Management System</p>
           </div>
         </div>
       </div>
