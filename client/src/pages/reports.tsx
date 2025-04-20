@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { 
   Breadcrumb, 
   BreadcrumbItem, 
@@ -24,8 +25,17 @@ import {
   SelectValue
 } from "@/components/ui/select";
 import { DownloadIcon, BarChart, PieChart, LineChart } from 'lucide-react';
+import DailyActivityReport from '@/components/reports/daily-activity-report';
+import PerformanceAnalysis from '@/components/reports/performance-analysis';
+import DigitizationTrends from '@/components/reports/digitization-trends';
 
 export default function Reports() {
+  const [reportDate, setReportDate] = useState(new Date().toISOString().slice(0, 10));
+  const [reportType, setReportType] = useState('summary');
+  const [trendPeriod, setTrendPeriod] = useState('weekly');
+  const [trendMetric, setTrendMetric] = useState('files');
+  const [showReport, setShowReport] = useState(false);
+  
   return (
     <div>
       <Breadcrumb>
@@ -61,18 +71,25 @@ export default function Reports() {
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div>
                   <Label htmlFor="report-date">Report Date</Label>
-                  <Input id="report-date" type="date" defaultValue={new Date().toISOString().slice(0, 10)} />
+                  <Input 
+                    id="report-date" 
+                    type="date" 
+                    value={reportDate}
+                    onChange={(e) => setReportDate(e.target.value)}
+                  />
                 </div>
                 <div>
                   <Label htmlFor="report-type">Report Type</Label>
-                  <Select defaultValue="summary">
+                  <Select 
+                    value={reportType}
+                    onValueChange={(value) => setReportType(value)}
+                  >
                     <SelectTrigger id="report-type">
                       <SelectValue placeholder="Select Report Type" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="summary">Summary Report</SelectItem>
                       <SelectItem value="detailed">Detailed Report</SelectItem>
-                      <SelectItem value="status">Status Report</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -90,21 +107,28 @@ export default function Reports() {
                   </Select>
                 </div>
                 <div className="flex items-end">
-                  <Button className="w-full">
+                  <Button 
+                    className="w-full"
+                    onClick={() => setShowReport(true)}
+                  >
                     <DownloadIcon className="h-4 w-4 mr-2" />
                     Generate Report
                   </Button>
                 </div>
               </div>
               
-              <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
-                <div className="text-center">
-                  <BarChart className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-sm">
-                    Please select report parameters and click "Generate Report" to view the report.
-                  </p>
+              {showReport ? (
+                <DailyActivityReport date={reportDate} reportType={reportType} />
+              ) : (
+                <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
+                  <div className="text-center">
+                    <BarChart className="h-12 w-12 mx-auto mb-4" />
+                    <p className="text-sm">
+                      Please select report parameters and click "Generate Report" to view the report.
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
