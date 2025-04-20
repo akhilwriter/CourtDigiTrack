@@ -134,39 +134,7 @@ export default function Reports() {
         </TabsContent>
         
         <TabsContent value="performance">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Operator Performance</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
-                  <div className="text-center">
-                    <BarChart className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-sm">
-                      Performance metrics by operator would be shown here.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle>Processing Efficiency</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
-                  <div className="text-center">
-                    <PieChart className="h-12 w-12 mx-auto mb-4" />
-                    <p className="text-sm">
-                      Processing time and efficiency metrics would be shown here.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <PerformanceAnalysis />
         </TabsContent>
         
         <TabsContent value="trends">
@@ -178,7 +146,10 @@ export default function Reports() {
               <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <Label htmlFor="trend-period">Time Period</Label>
-                  <Select defaultValue="weekly">
+                  <Select 
+                    value={trendPeriod}
+                    onValueChange={(value) => setTrendPeriod(value)}
+                  >
                     <SelectTrigger id="trend-period">
                       <SelectValue placeholder="Select Period" />
                     </SelectTrigger>
@@ -192,7 +163,10 @@ export default function Reports() {
                 </div>
                 <div>
                   <Label htmlFor="trend-metric">Metric</Label>
-                  <Select defaultValue="files">
+                  <Select 
+                    value={trendMetric}
+                    onValueChange={(value) => setTrendMetric(value)}
+                  >
                     <SelectTrigger id="trend-metric">
                       <SelectValue placeholder="Select Metric" />
                     </SelectTrigger>
@@ -204,20 +178,13 @@ export default function Reports() {
                   </Select>
                 </div>
                 <div className="flex items-end">
-                  <Button variant="outline" className="w-full">
+                  <Button variant="outline" className="w-full" onClick={() => setShowReport(true)}>
                     Update Chart
                   </Button>
                 </div>
               </div>
               
-              <div className="border rounded-lg p-8 flex items-center justify-center h-72 text-neutral-500">
-                <div className="text-center">
-                  <LineChart className="h-12 w-12 mx-auto mb-4" />
-                  <p className="text-sm">
-                    Digitization trend chart would be displayed here.
-                  </p>
-                </div>
-              </div>
+              <DigitizationTrends period={trendPeriod} metric={trendMetric} />
             </CardContent>
           </Card>
         </TabsContent>

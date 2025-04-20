@@ -50,7 +50,7 @@ export default function DigitizationTrends({ period, metric }: DigitizationTrend
   const uniqueDates = Array.from(new Set(dates));
   
   // Generate trend data
-  const trendData = uniqueDates.map(date => {
+  const trendData = uniqueDates.map((date: string) => {
     // Find files for this date
     const filesOnThisDate = fileReceipts.filter((receipt: any) => {
       const receiptDate = new Date(receipt.receivedAt).toISOString().split('T')[0];
